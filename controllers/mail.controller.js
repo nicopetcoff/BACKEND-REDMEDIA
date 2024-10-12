@@ -1,4 +1,4 @@
-const { mailSender } = require("../services/nodemailer");
+const { mailSender } = require("../services/user.service");
 const crypto = require("crypto");
 const UserService = require("../services/user.service");
 

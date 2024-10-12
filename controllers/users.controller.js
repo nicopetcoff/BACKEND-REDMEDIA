@@ -1,5 +1,4 @@
 var UserService = require("../services/user.service");
-var ProfesorService = require("../services/profesor.service");
 var jwt = require("jsonwebtoken");
 const cloudinary = require("../services/cloudinary");
 
