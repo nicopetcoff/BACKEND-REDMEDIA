@@ -4,6 +4,9 @@ const PostsService = require("../services/posts.service");
 exports.getAllPosts = async (req, res) => {
   try {
     const posts = await PostsService.getAllPosts();
+
+    console.log("llego aca");
+
     res.status(200).json({
       status: 200,
       data: posts,

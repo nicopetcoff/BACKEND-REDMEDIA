@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 // Esquema de los posts
 const PostSchema = new mongoose.Schema({
-  image: { type: String, required: true },
+  image: { type: [String], required: true }, // Cambiamos a un array de strings
   title: { type: String, required: true },
   user: { type: String, required: true },
   userAvatar: { type: String },

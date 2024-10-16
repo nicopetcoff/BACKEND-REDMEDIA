@@ -6,20 +6,20 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-router.get("/", function (req, res, next) {
-  res.send("Llegaste a la ruta de  api/user.routes");
-});
+// Ruta para el login
+router.post("/singin", UserController.loginUser);
 
-router.post("/registration", upload.single("image"), UserController.createUser);
-router.post("/login/", UserController.loginUser);
-router.get("/users", Authorization, UserController.getUsers);
-router.post("/userByMail", Authorization, UserController.getUsersByMail);
-router.put("/update", Authorization, UserController.updateUser);
-router.delete("/delete", Authorization, UserController.removeUser);
-router.get(
+// Nueva ruta de registro
+router.post("/signup", UserController.registerUser);
+
+// Login de usuario
+//router.post("/login/", UserController.loginUser);
+
+{/*router.get(
   "/obtenerImagenUsuario/:email",
   Authorization,
   UserController.getImagenUsuario
 );
+*/}
 
 module.exports = router;
