@@ -12,6 +12,9 @@ router.post("/singin", UserController.loginUser);
 // Nueva ruta de registro
 router.post("/signup", UserController.registerUser);
 
+// Ruta para obtener las notificaciones
+router.get("/notificaciones",UserController.notificaciones)
+
 // Login de usuario
 //router.post("/login/", UserController.loginUser);
 
