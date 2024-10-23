@@ -91,3 +91,26 @@ exports.loginUser = async function (req, res, next) {
     });
   }
 };
+
+//obtener las notificaciones
+exports.notificaciones = async function (req, res, next) {
+  const userEmail=req.body.email;
+  try {
+    var user = await UserService.getUserByEmail(userEmail);
+    if (!user) {
+      return res.status(400).json({
+        status: 400,
+        message: "El usuario no existe",
+      });
+    }
+    return res.status(200).json({
+      status: 200,
+      data: user.notificaciones,
+    });
+  } catch (e) {
+    return res.status(500).json({
+      status: 500,
+      message: "Error al obtener las notificaciones",
+    });
+  }
+}

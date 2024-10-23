@@ -9,6 +9,18 @@ var UserSchema = new mongoose.Schema({
   usernickname: { type: String, required: true, unique: true }, // Campo requerido
   resetToken: { type: String, default: "" },
   resetTokenExpires: { type: Date, default: null },
+  notificaciones:
+  [{
+    type: { type: String },
+    user: { type: String },
+    text: { type: String },
+    time: { type: Date, default: Date.now },
+    post:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post"
+    }
+  }]
+
 });
 
 UserSchema.plugin(mongoosePaginate);
