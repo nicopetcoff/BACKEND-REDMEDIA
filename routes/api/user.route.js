@@ -13,7 +13,7 @@ router.post("/singin", UserController.loginUser);
 router.post("/signup", UserController.registerUser);
 
 // Ruta para obtener las notificaciones
-router.get("/notificaciones",UserController.notificaciones)
+router.get("/notificaciones/:token",UserController.notificaciones)
 
 // Login de usuario
 //router.post("/login/", UserController.loginUser);

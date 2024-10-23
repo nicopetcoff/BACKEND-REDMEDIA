@@ -31,3 +31,12 @@ exports.getUserByEmail = async function (email) {
     throw Error("Error al buscar el usuario por email");
   }
 };
+
+exports.getUserByToken = async function (token) {
+  try {
+    const user = jwt.verify(token, process.env.SECRET);
+    return user;
+  }catch(e){
+    throw Error("Error al buscar el usuario por token");
+  }
+}
