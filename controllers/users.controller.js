@@ -53,31 +53,29 @@ exports.registerUser = async function (req, res, next) {
 
 exports.loginUser = async function (req, res, next) {
   try {
+    const { email, password } = req.body;
+    
     // Buscar el usuario por su email
-    var user = await UserService.getUserByEmail(req.body.email);
-
-    console.log("Llega esto", req.body);
-
+    const user = await UserService.getUserByEmail(email);
     if (!user) {
-      return res.status(400).json({
-        status: 400,
-        message: "El usuario no existe",
+      return res.status(401).json({
+        status: 401,
+        message: "Email o contraseña incorrectos",
       });
     }
 
-    // Comparar la contraseña proporcionada con la almacenada
-    var passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
-
+    // Comparar la contraseña proporcionada
+    const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) {
-      return res.status(400).json({
-        status: 400,
-        message: "Contraseña incorrecta",
+      return res.status(401).json({
+        status: 401,
+        message: "Email o contraseña incorrectos",
       });
     }
 
-    // Si la contraseña es correcta, crear el token JWT
-    var token = jwt.sign({ id: user._id }, process.env.SECRET, {
-      expiresIn: 86400, // Expira en 24 horas
+    // Crear token JWT si las credenciales son correctas
+    const token = jwt.sign({ id: user._id }, process.env.SECRET, {
+      expiresIn: 86400, // 24 horas
     });
 
     return res.status(200).json({
@@ -85,9 +83,10 @@ exports.loginUser = async function (req, res, next) {
       message: "Inicio de sesión exitoso",
     });
   } catch (e) {
+    console.error("Error en login:", e);
     return res.status(500).json({
       status: 500,
-      message: "Error al iniciar sesión",
+      message: "Error interno del servidor",
     });
   }
 };
