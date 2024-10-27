@@ -53,3 +53,12 @@ exports.actualizarResetToken = async function (email, resetToken, resetTokenExpi
     throw new Error("Error al actualizar el token de restablecimiento: " + error.message);
   }
 };
+
+exports.getUserById = async function (userId) {
+  try {
+    var user = await User.findById(userId); // Usar Mongoose para buscar el usuario por ID
+    return user;
+  } catch (e) {
+    throw new Error("Error al obtener el usuario por ID: " + e.message);
+  }
+};

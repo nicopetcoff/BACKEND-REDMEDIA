@@ -15,14 +15,8 @@ router.post("/signup", UserController.registerUser);
 // Ruta para obtener las notificaciones
 router.get("/notificaciones",UserController.notificaciones)
 
-// Login de usuario
-//router.post("/login/", UserController.loginUser);
 
-{/*router.get(
-  "/obtenerImagenUsuario/:email",
-  Authorization,
-  UserController.getImagenUsuario
-);
-*/}
+router.get("/me", Authorization, UserController.getUserData);
+
 
 module.exports = router;

@@ -114,3 +114,38 @@ exports.notificaciones = async function (req, res, next) {
     });
   }
 }
+
+exports.getUserData = async function (req, res) {
+  try {
+    // Obtiene el userId del token decodificado
+    const userId = req.userId;
+
+    // Busca el usuario en la base de datos
+    const user = await UserService.getUserById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 404,
+        message: "Usuario no encontrado",
+      });
+    }
+
+    // Devuelve los datos del usuario, excluyendo la contraseña
+    return res.status(200).json({
+      status: 200,
+      data: {
+        nombre: user.nombre,
+        apellido: user.apellido,
+        email: user.email,
+        usernickname: user.usernickname,
+        description: user.description,
+      },
+    });
+  } catch (error) {
+    console.error("Error al obtener los datos del usuario:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Error al obtener los datos del usuario",
+    });
+  }
+};

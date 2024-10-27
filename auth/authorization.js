@@ -24,5 +24,21 @@ var authorization = function (req, res, next) {
     });
 }
 
+exports.verifyToken = (req, res, next) => {
+    const token = req.headers["x-access-token"]; // O el encabezado que estés usando
+  
+    if (!token) {
+      return res.status(403).send({ message: "No se proporcionó token!" });
+    }
+  
+    jwt.verify(token, process.env.SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).send({ message: "No autorizado!" });
+      }
+      req.user = decoded; // Guardar los datos del usuario en la solicitud
+      next();
+    });
+  };
+
 module.exports = authorization;
 
