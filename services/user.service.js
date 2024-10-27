@@ -31,3 +31,34 @@ exports.getUserByEmail = async function (email) {
     throw Error("Error al buscar el usuario por email");
   }
 };
+
+exports.actualizarResetToken = async function (email, resetToken, resetTokenExpires) {
+  try {
+    // Actualizar el usuario con el nuevo token y su expiración
+    const updatedUser = await User.findOneAndUpdate(
+      { email: email }, // Buscar el usuario por email
+      {
+        resetToken: resetToken, // Establecer el nuevo token
+        resetTokenExpires: resetTokenExpires // Establecer la nueva fecha de expiración
+      },
+      { new: true } // Retornar el documento actualizado
+    );
+
+    if (!updatedUser) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return updatedUser; // Retornar el usuario actualizado
+  } catch (error) {
+    throw new Error("Error al actualizar el token de restablecimiento: " + error.message);
+  }
+};
+
+exports.getUserById = async function (userId) {
+  try {
+    var user = await User.findById(userId); // Usar Mongoose para buscar el usuario por ID
+    return user;
+  } catch (e) {
+    throw new Error("Error al obtener el usuario por ID: " + e.message);
+  }
+};

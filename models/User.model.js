@@ -6,6 +6,7 @@ var UserSchema = new mongoose.Schema({
   apellido: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  description : { type: String, default: "" },
   usernickname: { type: String, required: true, unique: true }, // Campo requerido
   resetToken: { type: String, default: "" },
   resetTokenExpires: { type: Date, default: null },
