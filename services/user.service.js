@@ -62,3 +62,23 @@ exports.getUserById = async function (userId) {
     throw new Error("Error al obtener el usuario por ID: " + e.message);
   }
 };
+
+
+exports.updateUserAvatar = async function (userId, imageUrl) {
+  try {
+    // Actualiza el campo de avatar en la base de datos
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { avatar: imageUrl }, // Asegúrate de que el campo en tu modelo se llame 'avatar'
+      { new: true } // Retorna el documento actualizado
+    );
+
+    if (!updatedUser) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return updatedUser; // Retorna el usuario actualizado
+  } catch (error) {
+    throw new Error("Error al actualizar el avatar: " + error.message);
+  }
+};
