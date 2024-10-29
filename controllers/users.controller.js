@@ -1,6 +1,7 @@
 var UserService = require("../services/user.service");
 var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
+const { uploadImage } = require("../services/cloudinary"); // Asegúrate de importar la función
 
 _this = this;
 
@@ -138,7 +139,9 @@ exports.getUserData = async function (req, res) {
         apellido: user.apellido,
         email: user.email,
         usernickname: user.usernickname,
-        description: user.description,
+        bio: user.bio,
+        avatar: user.avatar,
+        coverImage: user.coverImage,
       },
     });
   } catch (error) {
@@ -147,5 +150,38 @@ exports.getUserData = async function (req, res) {
       status: 500,
       message: "Error al obtener los datos del usuario",
     });
+  }
+};
+
+
+
+exports.updateProfileImage = async function (req, res) {
+  try {
+    const userId = req.userId; // Obtener el ID del usuario desde el token
+    console.log("User ID:", userId); // Verifica que el ID del usuario sea correcto
+
+    // Verificar si se ha enviado una imagen
+    if (!req.file) {
+      console.log("No se ha proporcionado ninguna imagen."); // Log para imagen no enviada
+      return res.status(400).json({ message: "No se ha proporcionado ninguna imagen." });
+    }
+
+    console.log("Imagen recibida:", req.file); // Log para verificar la imagen recibida
+
+    // Aquí llamas a la función para subir la imagen a Cloudinary y obtener la URL
+    const imageUrl = await uploadImage(req.file.buffer);
+    console.log("URL de la imagen subida a Cloudinary:", imageUrl); // Log para verificar la URL de la imagen
+
+    // Actualiza el usuario en la base de datos
+    await UserService.updateUserAvatar(userId, imageUrl); // Asegúrate de implementar esta función en UserService
+
+    return res.status(200).json({
+      status: 200,
+      message: "Imagen de perfil actualizada correctamente.",
+      imageUrl, // Retorna la URL de la imagen
+    });
+  } catch (error) {
+    console.error("Error al actualizar la imagen de perfil:", error); // Log de error
+    return res.status(500).json({ status: 500, message: "Error al actualizar la imagen de perfil." });
   }
 };

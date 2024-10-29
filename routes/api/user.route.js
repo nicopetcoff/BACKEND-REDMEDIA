@@ -18,5 +18,7 @@ router.get("/notificaciones",UserController.notificaciones)
 
 router.get("/me", Authorization, UserController.getUserData);
 
+router.post("/updateProfileImage", Authorization, upload.single('avatar'), UserController.updateProfileImage);
+
 
 module.exports = router;
