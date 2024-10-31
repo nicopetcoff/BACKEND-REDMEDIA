@@ -94,9 +94,10 @@ exports.loginUser = async function (req, res, next) {
 
 //obtener las notificaciones
 exports.notificaciones = async function (req, res, next) {
-  const userEmail=req.body.email;
   try {
-    var user = await UserService.getUserByEmail(userEmail);
+    console.log("Obteniendo notificaciones");
+    const userToken=req.params;
+    const user = await UserService.getUserByToken(userToken);
     if (!user) {
       return res.status(400).json({
         status: 400,
