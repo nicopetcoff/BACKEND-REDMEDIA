@@ -32,6 +32,15 @@ exports.getUserByEmail = async function (email) {
   }
 };
 
+exports.getUserNotificaciones= async function(userId){
+  try{
+    const notificicaciones = await User.findById(userId).select('notificaciones');
+    return notificicaciones
+  }catch(e){
+    throw Error("Error al obtener las notificaciones del usuario");
+  }
+}
+
 exports.actualizarResetToken = async function (email, resetToken, resetTokenExpires) {
   try {
     // Actualizar el usuario con el nuevo token y su expiración

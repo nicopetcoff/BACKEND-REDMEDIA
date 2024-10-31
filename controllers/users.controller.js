@@ -93,26 +93,15 @@ exports.loginUser = async function (req, res, next) {
 };
 
 //obtener las notificaciones
-exports.notificaciones = async function (req, res, next) {
-  try {
-    console.log("Obteniendo notificaciones");
-    const userToken=req.params;
-    const user = await UserService.getUserByToken(userToken);
-    if (!user) {
-      return res.status(400).json({
-        status: 400,
-        message: "El usuario no existe",
-      });
-    }
-    return res.status(200).json({
-      status: 200,
-      data: user.notificaciones,
-    });
-  } catch (e) {
-    return res.status(500).json({
-      status: 500,
-      message: "Error al obtener las notificaciones",
-    });
+
+exports.notificaciones  =async function(req,res){
+  try{
+    const token=req.headers["x-access-token"];
+    const decoded = jwt.verify(token, process.env.SECRET);
+    const notificicaciones = await UserService.getUserNotificaciones(decoded.id);
+    return notificicaciones.notificaciones
+  }catch(e){
+    throw Error("Error al obtener las notificaciones del usuario");
   }
 }
 
