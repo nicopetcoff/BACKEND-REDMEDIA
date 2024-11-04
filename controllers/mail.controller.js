@@ -45,7 +45,7 @@ const sendPasswordResetEmail = async (req, res) => {
     await UserService.actualizarResetToken(email, resetToken, resetTokenExpires);
 
     // Cambia "localhost" por la dirección IP de tu máquina o un dominio accesible
-    const frontendUrl = "http://10.0.2.2:3000"; // Reemplaza con la dirección IP de tu máquina
+    const frontendUrl = "192.168.1.100:3000"; // Reemplaza con la dirección IP de tu máquina
 
     // Integrar el contenido existente del servicio de correo
     const subject = "Recuperación de Contraseña";
