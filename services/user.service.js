@@ -1,4 +1,4 @@
-var User = require("../models/user.model"); // Importar el modelo de usuario
+var User = require("../models/User.model"); 
 
 _this = this;
 
