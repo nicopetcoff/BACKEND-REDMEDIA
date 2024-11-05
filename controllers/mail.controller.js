@@ -44,12 +44,12 @@ const sendPasswordResetEmail = async (req, res) => {
     // Almacenar token en la base de datos o memoria (en este caso, actualizando el usuario)
     await UserService.actualizarResetToken(email, resetToken, resetTokenExpires);
 
-    // Cambia "localhost" por la dirección IP de tu máquina o un dominio accesible
-    const frontendUrl = "192.168.1.100:3000"; // Reemplaza con la dirección IP de tu máquina
+    // Cambia "localhost" por el esquema de URL de Expo
+    const frontendUrl = `redmedia://reset-password?token=${resetToken}`; // Usando deep linking
 
     // Integrar el contenido existente del servicio de correo
     const subject = "Recuperación de Contraseña";
-    const text = `Haz clic en el siguiente enlace para restablecer tu contraseña: ${frontendUrl}/reset-password/${resetToken}`;
+    const text = `Haz clic en el siguiente enlace para restablecer tu contraseña: ${frontendUrl}`;
 
     // Enviar el correo electrónico
     await mailSender(email, subject, text);
