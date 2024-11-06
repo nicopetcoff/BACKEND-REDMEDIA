@@ -2,17 +2,21 @@ var UserService = require("../services/user.service");
 var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
 const { uploadImage } = require("../services/cloudinary"); // Asegúrate de importar la función
+const admin = require("../firebaseAdmin"); 
+const { mailSender } = require("../services/nodemailer");
 
 _this = this;
 
 // Controlador para registrar un nuevo usuario
 exports.registerUser = async function (req, res, next) {
+  console.log("Registrando usuario en backend con los siguientes datos:", req.body);
 
-  console.log("Registrando usuario");
-  console.log(req.body);
+  const { email, password, name, lastName, nick } = req.body;
+
   try {
-    // Verificar si el email ya está registrado
-    const emailExists = await UserService.verificarEmailExistente(req.body.email);
+    // Verificar si el email ya está registrado en tu base de datos
+    const emailExists = await UserService.verificarEmailExistente(email);
+    console.log("¿Email existe en la base de datos?", emailExists);
     if (emailExists) {
       return res.status(400).json({
         status: 400,
@@ -20,76 +24,95 @@ exports.registerUser = async function (req, res, next) {
       });
     }
 
-    // Hash de la contraseña antes de guardar
-    const hashedPassword = bcrypt.hashSync(req.body.password, 8);
+    // Crear usuario en Firebase Authentication
+    const firebaseUser = await admin.auth().createUser({
+      email,
+      password,
+    });
+    console.log("Usuario creado en Firebase con UID:", firebaseUser.uid);
 
-    // Crear un nuevo usuario
-    var newUser = {
-      nombre: req.body.name,
-      apellido: req.body.lastName,
-      email: req.body.email,
-      password: hashedPassword,
-      usernickname: req.body.nick, // Guardar el usernickname
+    // Crear un nuevo usuario en la base de datos
+    const newUser = {
+      nombre: name,
+      apellido: lastName,
+      email,
+      password,
+      usernickname: nick,
     };
 
-    // Guardar el usuario en la base de datos
-    var createdUser = await UserService.createUser(newUser);
+    const createdUser = await UserService.createUser(newUser);
+    console.log("Usuario creado en la base de datos:", createdUser);
 
-    // Crear un token JWT para autenticar al usuario recién creado
-    var token = jwt.sign({ id: createdUser._id }, process.env.SECRET, {
-      expiresIn: 86400, // 24 horas
+    // Generar token JWT para autenticar al usuario en el backend
+    const token = jwt.sign({ id: createdUser._id }, process.env.SECRET, {
+      expiresIn: 86400, // Expira en 24 horas
     });
 
     return res.status(201).json({
-      token: token,
+      token,
       message: "Usuario creado exitosamente",
+      user: {
+        id: createdUser._id,
+        email: createdUser.email,
+        nombre: createdUser.nombre,
+        apellido: createdUser.apellido,
+      },
     });
   } catch (e) {
+    console.error("Error al crear el usuario:", e);
     return res.status(400).json({
       status: 400,
       message: "Error al crear el usuario",
+      error: e.message,
     });
   }
 };
 
 exports.loginUser = async function (req, res, next) {
   try {
-    // Buscar el usuario por su email
-    var user = await UserService.getUserByEmail(req.body.email);
+    // Log para ver el contenido completo del request
+    console.log("Request recibido en loginUser:", req.body);
 
-    console.log("Llega esto", req.body);
+    // Intentar obtener y verificar el token de Firebase
+    const firebaseToken = req.body.firebaseToken; // Asegúrate de que el nombre coincide con el frontend
+    const email = req.body.email;
 
+    // Log para confirmar la recepción del token y del email
+    console.log("Token de Firebase recibido en el backend:", firebaseToken);
+    console.log("Email recibido:", email);
+
+    // Validar que el token de Firebase no esté vacío
+    if (!firebaseToken) {
+      return res.status(400).json({ status: 400, message: "Token de Firebase faltante" });
+    }
+
+    // Verificar el token de Firebase usando Firebase Admin
+    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+    console.log("Token de Firebase decodificado:", decodedToken);
+
+    // Buscar el usuario por su email en la base de datos
+    const user = await UserService.getUserByEmail(email);
     if (!user) {
-      return res.status(400).json({
-        status: 400,
-        message: "El usuario no existe",
-      });
+      return res.status(400).json({ status: 400, message: "El usuario no existe" });
     }
 
-    // Comparar la contraseña proporcionada con la almacenada
-    var passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
+    // Crear un token JWT para autenticar al usuario en el backend
+    const backendToken = jwt.sign({ id: user._id }, process.env.SECRET, { expiresIn: 86400 });
+    console.log("Token JWT del backend generado:", backendToken);
 
-    if (!passwordIsValid) {
-      return res.status(400).json({
-        status: 400,
-        message: "Contraseña incorrecta",
-      });
-    }
-
-    // Si la contraseña es correcta, crear el token JWT
-    var token = jwt.sign({ id: user._id }, process.env.SECRET, {
-      expiresIn: 86400, // Expira en 24 horas
-    });
-
+    // Enviar respuesta al frontend
     return res.status(200).json({
-      token: token,
-      message: "Inicio de sesión exitoso",
+      token: backendToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        nombre: user.nombre,
+        apellido: user.apellido,
+      },
     });
-  } catch (e) {
-    return res.status(500).json({
-      status: 500,
-      message: "Error al iniciar sesión",
-    });
+  } catch (error) {
+    console.error("Error al verificar el token de Firebase:", error);
+    return res.status(500).json({ message: "Error durante el inicio de sesión", error: error.message });
   }
 };
 
@@ -173,5 +196,35 @@ exports.updateProfileImage = async function (req, res) {
   } catch (error) {
     console.error("Error al actualizar la imagen de perfil:", error); // Log de error
     return res.status(500).json({ status: 500, message: "Error al actualizar la imagen de perfil." });
+  }
+};
+
+
+// Controlador para enviar un enlace de restablecimiento de contraseña
+exports.sendPasswordResetEmail = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Verificar si el correo electrónico existe en la base de datos de usuarios
+    const emailExists = await UserService.verificarEmailExistente(email);
+    if (!emailExists) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    // Generar el enlace de restablecimiento de contraseña usando Firebase
+    const auth = admin.auth();
+    const resetLink = await auth.generatePasswordResetLink(email);
+
+    // Configuración del correo
+    const subject = "Recuperación de Contraseña";
+    const text = `Haz clic en el siguiente enlace para restablecer tu contraseña: ${resetLink}`;
+
+    // Enviar el correo electrónico con el enlace de Firebase
+    await mailSender(email, subject, text);
+
+    res.json({ message: "Correo electrónico enviado con éxito", link: resetLink });
+  } catch (error) {
+    console.error("Error en el controlador de correo:", error);
+    res.status(500).json({ error: error.message });
   }
 };

@@ -20,5 +20,8 @@ router.get("/me", Authorization, UserController.getUserData);
 
 router.post("/updateProfileImage", Authorization, upload.single('avatar'), UserController.updateProfileImage);
 
+router.post("/forgot-password", UserController.sendPasswordResetEmail);
+
+
 
 module.exports = router;

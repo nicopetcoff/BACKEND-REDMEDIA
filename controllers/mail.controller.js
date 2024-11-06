@@ -44,8 +44,8 @@ const sendPasswordResetEmail = async (req, res) => {
     // Almacenar token en la base de datos o memoria (en este caso, actualizando el usuario)
     await UserService.actualizarResetToken(email, resetToken, resetTokenExpires);
 
-    // Cambia "localhost" por el esquema de URL de Expo
-    const frontendUrl = `redmedia://reset-password?token=${resetToken}`; // Usando deep linking
+    // URL del frontend local
+    const frontendUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
 
     // Integrar el contenido existente del servicio de correo
     const subject = "Recuperación de Contraseña";
@@ -60,7 +60,6 @@ const sendPasswordResetEmail = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 // Controlador para restablecer la contraseña del usuario
 
 const resetPassword = async (req, res) => {
