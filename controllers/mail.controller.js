@@ -67,7 +67,6 @@ const resetPassword = async (req, res) => {
   const email = req.body.email;
   const resetToken = req.body.resetToken;
   const newPassword = req.body.newPassword;
-  console.log(email);
 
   try {
     // Buscar el usuario por correo electrónico
