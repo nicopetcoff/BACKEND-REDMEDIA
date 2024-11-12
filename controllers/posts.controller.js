@@ -10,9 +10,10 @@ exports.getAllPosts = async (req, res) => {
       message: "Posts obtenidos exitosamente",
     });
   } catch (error) {
+    console.error('Error al obtener posts:', error);
     res.status(400).json({
       status: 400,
-      message: error.message,
+      message: error.message || "Error al obtener los posts",
     });
   }
 };

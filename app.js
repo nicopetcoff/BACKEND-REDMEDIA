@@ -1,70 +1,97 @@
-//Express
-var express = require("express");
-var cookieParser = require("cookie-parser");
-var bluebird = require("bluebird");
+// app.js
+const express = require("express");
+const cookieParser = require("cookie-parser");
+const bluebird = require("bluebird");
+const cors = require("cors");
+const indexRouter = require("./routes/index");
+const apiRouter = require("./routes/api");
 
-//Incorporo cors
-var cors = require("cors");
+// Suprimir warnings de deprecación
+process.removeAllListeners('warning');
 
-//Importo router
-var indexRouter = require("./routes/index");
-var apiRouter = require("./routes/api"); //Custom
+const app = express();
 
-//Instancio el servidor
-var app = express();
+// Configuraciones básicas
 app.use(express.json());
-app.use(
-  express.urlencoded({
-    extended: false,
-  })
-);
-
-//Aplico cors
+app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 app.use(cookieParser());
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "http://localhost:3000", "*");
+
+// Configuración de CORS
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
+    "Authorization, Origin, X-Requested-With, Content-Type, Accept, x-access-token"
   );
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   next();
 });
 
-//Indico las rutas de los endpoint
+// Rutas
 app.use("/api", apiRouter);
 app.use("/", indexRouter);
 
+// Config para desarrollo
 if (process.env.NODE_ENV === "Development") {
   require("./config").config();
 }
 
-//Conexion a la Base de Datos
-var mongoose = require("mongoose");
+// Conexión MongoDB
+const mongoose = require("mongoose");
 mongoose.Promise = bluebird;
-let url = `${process.env.DATABASE1}${process.env.DATABASE2}=${process.env.DATABASE3}=${process.env.DATABASE4}`;
-console.log("BD", url);
-let opts = {
+
+// Construir URL de MongoDB usando la nueva sintaxis de URL
+const mongoURL = new URL(process.env.DATABASE1 + process.env.DATABASE_NAME);
+mongoURL.searchParams.append('retryWrites', 'true');
+mongoURL.searchParams.append('w', 'majority');
+
+// Opciones de MongoDB
+const mongooseOptions = {
   useNewUrlParser: true,
-  connectTimeoutMS: 20000,
   useUnifiedTopology: true,
+  useFindAndModify: false,
+  useCreateIndex: true,
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 30000,
+  ssl: true
 };
 
+// Configuración adicional de Mongoose
+mongoose.set('strictQuery', true);
+
+// Conexión a MongoDB
 mongoose
-  .connect(url, opts)
+  .connect(mongoURL.toString(), mongooseOptions)
   .then(() => {
-    console.log(`Succesfully Connected to theMongodb Database..`);
+    console.log("MongoDB conectado exitosamente");
   })
-  .catch((e) => {
-    console.log(`Error Connecting to the Mongodb Database...`), console.log(e);
+  .catch((err) => {
+    console.error("Error de conexión a MongoDB:", err.message);
+    process.exit(1);
   });
 
-// Server Port
-var port = process.env.PORT || 8080;
-// Escuchar en el puerto
-app.listen(port, () => {
-  console.log("Servidor de ABM Users iniciado en el puerto ", port);
+// Manejo de errores de MongoDB
+mongoose.connection.on('error', err => {
+  console.error('Error de MongoDB:', err);
+});
+
+// Puerto del servidor
+const port = process.env.PORT || 4000;
+
+// Iniciar servidor
+const server = app.listen(port, () => {
+  console.log(`Servidor iniciado en puerto ${port}`);
+});
+
+// Manejo de errores del servidor
+server.on('error', (err) => {
+  console.error('Error del servidor:', err);
+});
+
+// Manejo de errores no capturados
+process.on('unhandledRejection', (err) => {
+  console.error('Error no manejado:', err);
 });
 
 module.exports = app;
