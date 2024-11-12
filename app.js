@@ -28,6 +28,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Rutas
 app.use("/api", apiRouter);
 app.use("/", indexRouter);
 
@@ -36,17 +37,24 @@ if (process.env.NODE_ENV === "Development") {
   require("./config").config();
 }
 
-// Conexión a la Base de Datos
-var mongoose = require("mongoose");
+// Conexión MongoDB
+const mongoose = require("mongoose");
 mongoose.Promise = bluebird;
-let url = `${process.env.DATABASE1}${process.env.DATABASE2}=${process.env.DATABASE3}=${process.env.DATABASE4}`;
 
-// Opciones de conexión actualizadas
-let opts = {
+// Construir URL de MongoDB usando la nueva sintaxis de URL
+const mongoURL = new URL(process.env.DATABASE1 + process.env.DATABASE_NAME);
+mongoURL.searchParams.append('retryWrites', 'true');
+mongoURL.searchParams.append('w', 'majority');
+
+// Opciones de MongoDB
+const mongooseOptions = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   useFindAndModify: false,
-  useCreateIndex: true
+  useCreateIndex: true,
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 30000,
+  ssl: true
 };
 
 // Configuración adicional de Mongoose
@@ -54,19 +62,36 @@ mongoose.set('strictQuery', true);
 
 // Conexión a MongoDB
 mongoose
-  .connect(url, opts)
+  .connect(mongoURL.toString(), mongooseOptions)
   .then(() => {
-    console.log(`Succesfully Connected to the Mongodb Database..`);
+    console.log("MongoDB conectado exitosamente");
   })
-  .catch((e) => {
-    console.log(`Error Connecting to the Mongodb Database...`);
-    console.log(e);
+  .catch((err) => {
+    console.error("Error de conexión a MongoDB:", err.message);
+    process.exit(1);
   });
 
-var port = process.env.PORT || 8080;
+// Manejo de errores de MongoDB
+mongoose.connection.on('error', err => {
+  console.error('Error de MongoDB:', err);
+});
 
-app.listen(port, () => {
-  console.log("Servidor de ABM Users iniciado en el puerto ", port);
+// Puerto del servidor
+const port = process.env.PORT || 4000;
+
+// Iniciar servidor
+const server = app.listen(port, () => {
+  console.log(`Servidor iniciado en puerto ${port}`);
+});
+
+// Manejo de errores del servidor
+server.on('error', (err) => {
+  console.error('Error del servidor:', err);
+});
+
+// Manejo de errores no capturados
+process.on('unhandledRejection', (err) => {
+  console.error('Error no manejado:', err);
 });
 
 module.exports = app;
