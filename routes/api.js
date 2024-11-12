@@ -3,7 +3,7 @@ var router = express.Router();
 var users = require("./api/user.route");
 var posts = require("./api/posts.route"); // Ruta para los posts
 var mailRoutes = require("./api/mail.route");
-var ads = require("./api/ads.route");
+var ads = require("./api/ads.routes");
 
 // Rutas de usuarios
 router.use("/users", users); // La ruta de registro se manejará aquí

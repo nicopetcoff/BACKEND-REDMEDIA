@@ -26,9 +26,7 @@ exports.registerUser = async function (req, res, next) {
     };
 
     var createdUser = await UserService.createUser(newUser);
-    var token = jwt.sign({ id: createdUser._id }, process.env.SECRET, {
-      expiresIn: 86400,
-    });
+    var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
 
     return res.status(201).json({
       token: token,
@@ -62,9 +60,7 @@ exports.loginUser = async function (req, res, next) {
       });
     }
 
-    var token = jwt.sign({ id: user._id }, process.env.SECRET, {
-      expiresIn: 86400,
-    });
+    var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
 
     return res.status(200).json({
       token: token,
@@ -78,6 +74,7 @@ exports.loginUser = async function (req, res, next) {
   }
 };
 
+// El resto del código permanece igual...
 exports.notificaciones = async function(req, res) {
   try {
     const token = req.headers["x-access-token"];
