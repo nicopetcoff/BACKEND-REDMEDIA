@@ -1,16 +1,12 @@
 var UserService = require("../services/user.service");
 var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
+const { uploadImage } = require("../services/cloudinary");
 
 _this = this;
 
-// Controlador para registrar un nuevo usuario
 exports.registerUser = async function (req, res, next) {
-
-  console.log("Registrando usuario");
-  console.log(req.body);
   try {
-    // Verificar si el email ya está registrado
     const emailExists = await UserService.verificarEmailExistente(req.body.email);
     if (emailExists) {
       return res.status(400).json({
@@ -19,25 +15,18 @@ exports.registerUser = async function (req, res, next) {
       });
     }
 
-    // Hash de la contraseña antes de guardar
     const hashedPassword = bcrypt.hashSync(req.body.password, 8);
 
-    // Crear un nuevo usuario
     var newUser = {
       nombre: req.body.name,
       apellido: req.body.lastName,
       email: req.body.email,
       password: hashedPassword,
-      usernickname: req.body.nick, // Guardar el usernickname
+      usernickname: req.body.nick,
     };
 
-    // Guardar el usuario en la base de datos
     var createdUser = await UserService.createUser(newUser);
-
-    // Crear un token JWT para autenticar al usuario recién creado
-    var token = jwt.sign({ id: createdUser._id }, process.env.SECRET, {
-      expiresIn: 86400, // 24 horas
-    });
+    var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
 
     return res.status(201).json({
       token: token,
@@ -53,10 +42,7 @@ exports.registerUser = async function (req, res, next) {
 
 exports.loginUser = async function (req, res, next) {
   try {
-    // Buscar el usuario por su email
     var user = await UserService.getUserByEmail(req.body.email);
-
-    console.log("Llega esto", req.body);
 
     if (!user) {
       return res.status(400).json({
@@ -65,7 +51,6 @@ exports.loginUser = async function (req, res, next) {
       });
     }
 
-    // Comparar la contraseña proporcionada con la almacenada
     var passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
 
     if (!passwordIsValid) {
@@ -75,10 +60,7 @@ exports.loginUser = async function (req, res, next) {
       });
     }
 
-    // Si la contraseña es correcta, crear el token JWT
-    var token = jwt.sign({ id: user._id }, process.env.SECRET, {
-      expiresIn: 86400, // Expira en 24 horas
-    });
+    var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
 
     return res.status(200).json({
       token: token,
@@ -92,26 +74,72 @@ exports.loginUser = async function (req, res, next) {
   }
 };
 
-//obtener las notificaciones
-exports.notificaciones = async function (req, res, next) {
+// El resto del código permanece igual...
+exports.notificaciones = async function(req, res) {
   try {
-    console.log("Obteniendo notificaciones");
-    const userToken=req.params;
-    const user = await UserService.getUserByToken(userToken);
+    const token = req.headers["x-access-token"];
+    const decoded = jwt.verify(token, process.env.SECRET);
+    const notificicaciones = await UserService.getUserNotificaciones(decoded.id);
+    return notificicaciones.notificaciones;
+  } catch(e) {
+    throw Error("Error al obtener las notificaciones del usuario");
+  }
+};
+
+exports.getUserData = async function (req, res) {
+  try {
+    const userId = req.userId;
+    const user = await UserService.getUserById(userId);
+
     if (!user) {
-      return res.status(400).json({
-        status: 400,
-        message: "El usuario no existe",
+      return res.status(404).json({
+        status: 404,
+        message: "Usuario no encontrado",
       });
     }
+
     return res.status(200).json({
       status: 200,
-      data: user.notificaciones,
+      data: {
+        nombre: user.nombre,
+        apellido: user.apellido,
+        email: user.email,
+        usernickname: user.usernickname,
+        bio: user.bio,
+        avatar: user.avatar,
+        coverImage: user.coverImage,
+      },
     });
-  } catch (e) {
+  } catch (error) {
     return res.status(500).json({
       status: 500,
-      message: "Error al obtener las notificaciones",
+      message: "Error al obtener los datos del usuario",
     });
   }
-}
+};
+
+exports.updateProfileImage = async function (req, res) {
+  try {
+    const userId = req.userId;
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        message: "No se ha proporcionado ninguna imagen." 
+      });
+    }
+
+    const imageUrl = await uploadImage(req.file.buffer);
+    await UserService.updateUserAvatar(userId, imageUrl);
+
+    return res.status(200).json({
+      status: 200,
+      message: "Imagen de perfil actualizada correctamente.",
+      imageUrl,
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      status: 500, 
+      message: "Error al actualizar la imagen de perfil." 
+    });
+  }
+};

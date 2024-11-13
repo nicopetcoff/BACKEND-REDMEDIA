@@ -1,4 +1,6 @@
 const cloudinary = require("cloudinary").v2;
+const streamifier = require('streamifier');
+
 
 cloudinary.config({
   cloud_name: "dxgbzpvaq",
@@ -19,7 +21,7 @@ const uploadImage = async (imageBuffer) => {
       .end(imageBuffer);
   })
     .then((result) => {
-      console.log(result);
+     
       return result;
     })
     .catch((error) => {
@@ -29,6 +31,28 @@ const uploadImage = async (imageBuffer) => {
   return uploadResult;
 };
 
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'posts',
+        resource_type: 'auto'
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Error en uploadToCloudinary:', error);
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
+
 module.exports = {
-  uploadImage,
+  uploadImage, uploadToCloudinary
 };

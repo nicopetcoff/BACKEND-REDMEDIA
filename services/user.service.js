@@ -1,4 +1,4 @@
-var User = require("../models/user.model"); // Importar el modelo de usuario
+var User = require("../models/User.model"); 
 
 _this = this;
 
@@ -32,11 +32,62 @@ exports.getUserByEmail = async function (email) {
   }
 };
 
-exports.getUserByToken = async function (token) {
-  try {
-    const user = jwt.verify(token, process.env.SECRET);
-    return user;
+exports.getUserNotificaciones= async function(userId){
+  try{
+    const notificicaciones = await User.findById(userId).select('notificaciones');
+    return notificicaciones
   }catch(e){
-    throw Error("Error al buscar el usuario por token");
+    throw Error("Error al obtener las notificaciones del usuario");
   }
 }
+
+exports.actualizarResetToken = async function (email, resetToken, resetTokenExpires) {
+  try {
+    // Actualizar el usuario con el nuevo token y su expiración
+    const updatedUser = await User.findOneAndUpdate(
+      { email: email }, // Buscar el usuario por email
+      {
+        resetToken: resetToken, // Establecer el nuevo token
+        resetTokenExpires: resetTokenExpires // Establecer la nueva fecha de expiración
+      },
+      { new: true } // Retornar el documento actualizado
+    );
+
+    if (!updatedUser) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return updatedUser; // Retornar el usuario actualizado
+  } catch (error) {
+    throw new Error("Error al actualizar el token de restablecimiento: " + error.message);
+  }
+};
+
+exports.getUserById = async function (userId) {
+  try {
+    var user = await User.findById(userId); // Usar Mongoose para buscar el usuario por ID
+    return user;
+  } catch (e) {
+    throw new Error("Error al obtener el usuario por ID: " + e.message);
+  }
+};
+
+
+exports.updateUserAvatar = async function (userId, imageUrl) {
+  try {
+    // Actualiza el campo de avatar en la base de datos
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { avatar: imageUrl }, // Asegúrate de que el campo en tu modelo se llame 'avatar'
+      { new: true } // Retorna el documento actualizado
+    );
+
+    if (!updatedUser) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return updatedUser; // Retorna el usuario actualizado
+  } catch (error) {
+    throw new Error("Error al actualizar el avatar: " + error.message);
+  }
+};
