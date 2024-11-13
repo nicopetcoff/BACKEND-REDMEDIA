@@ -91,3 +91,20 @@ exports.updateUserAvatar = async function (userId, imageUrl) {
     throw new Error("Error al actualizar el avatar: " + error.message);
   }
 };
+
+exports.getUsers = async () => {
+  try {
+    
+    const users = await User.find({}, { 
+      password: 0, 
+      resetToken: 0, 
+      resetTokenExpires: 0 
+    }).lean();
+    
+    
+    return users;
+  } catch (error) {
+    console.error('Error en getUsers service:', error);
+    throw new Error('Error al obtener los usuarios');
+  }
+};
