@@ -6,11 +6,14 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Rutas de usuarios
+router.get("/", Authorization,UserController.getUsers);
+
 // Ruta para el login
 router.post("/singin", UserController.loginUser);
 
 // Nueva ruta de registro
-router.post("/signup", UserController.registerUser);
+router.post("/register", UserController.registerUser);
 
 // Ruta para obtener las notificaciones
 router.get("/notificaciones",UserController.notificaciones)

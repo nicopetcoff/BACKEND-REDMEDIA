@@ -143,3 +143,24 @@ exports.updateProfileImage = async function (req, res) {
     });
   }
 };
+
+exports.getUsers = async (req, res) => {
+  try {
+    
+
+    const users = await UserService.getUsers();
+    
+
+    return res.status(200).json({
+      status: 200,
+      data: users,
+      message: 'Usuarios obtenidos exitosamente',
+    });
+  } catch (error) {
+    console.error('Error en getUsers controller:', error);
+    return res.status(400).json({
+      status: 400,
+      message: error.message,
+    });
+  }
+};
