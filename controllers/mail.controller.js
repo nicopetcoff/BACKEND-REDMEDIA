@@ -27,10 +27,7 @@ const sendPasswordResetEmail = async (req, res) => {
   try {
     const user = await UserService.getUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ 
-        status: 404,
-        message: "Usuario no encontrado" 
-      });
+      throw({ message: "E-mail incorrecto" })
     }
 
     const defaultPassword = Math.random().toString(36).slice(-8);
@@ -64,11 +61,7 @@ const sendPasswordResetEmail = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en reset password:', error);
-    return res.status(500).json({
-      status: 500,
-      message: "Error al procesar la solicitud"
-    });
+    throw Error(error)
   }
 };
 

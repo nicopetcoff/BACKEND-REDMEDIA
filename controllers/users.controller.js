@@ -9,10 +9,7 @@ exports.registerUser = async function (req, res, next) {
   try {
     const emailExists = await UserService.verificarEmailExistente(req.body.email);
     if (emailExists) {
-      return res.status(400).json({
-        status: 400,
-        message: "El email ya está registrado",
-      });
+      throw({message: "El email ya está registrado"})
     }
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 8);
@@ -35,7 +32,7 @@ exports.registerUser = async function (req, res, next) {
   } catch (e) {
     return res.status(400).json({
       status: 400,
-      message: "Error al crear el usuario",
+      message: e.message,
     });
   }
 };
@@ -45,19 +42,13 @@ exports.loginUser = async function (req, res, next) {
     var user = await UserService.getUserByEmail(req.body.email);
 
     if (!user) {
-      return res.status(400).json({
-        status: 400,
-        message: "El usuario no existe",
-      });
+      throw({message: "El usuario no existe"})
     }
 
     var passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
 
     if (!passwordIsValid) {
-      return res.status(400).json({
-        status: 400,
-        message: "Contraseña incorrecta",
-      });
+     throw({message:"Contraseña incorrecta"});
     }
 
     var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
@@ -69,7 +60,7 @@ exports.loginUser = async function (req, res, next) {
   } catch (e) {
     return res.status(500).json({
       status: 500,
-      message: "Error al iniciar sesión",
+      message: e.message,
     });
   }
 };
@@ -92,10 +83,7 @@ exports.getUserData = async function (req, res) {
     const user = await UserService.getUserById(userId);
 
     if (!user) {
-      return res.status(404).json({
-        status: 404,
-        message: "Usuario no encontrado",
-      });
+      throw({ message: "Usuario no encontrado"})
     }
 
     return res.status(200).json({
@@ -113,7 +101,7 @@ exports.getUserData = async function (req, res) {
   } catch (error) {
     return res.status(500).json({
       status: 500,
-      message: "Error al obtener los datos del usuario",
+      message: e.message,
     });
   }
 };
@@ -123,9 +111,7 @@ exports.updateProfileImage = async function (req, res) {
     const userId = req.userId;
 
     if (!req.file) {
-      return res.status(400).json({ 
-        message: "No se ha proporcionado ninguna imagen." 
-      });
+      throw({message: "No se ha proporcionado ninguna imagen."})
     }
 
     const imageUrl = await uploadImage(req.file.buffer);
@@ -139,7 +125,7 @@ exports.updateProfileImage = async function (req, res) {
   } catch (error) {
     return res.status(500).json({ 
       status: 500, 
-      message: "Error al actualizar la imagen de perfil." 
+      message:e.message
     });
   }
 };
