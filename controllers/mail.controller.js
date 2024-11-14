@@ -47,8 +47,6 @@ const sendPasswordResetEmail = async (req, res) => {
 
       Tu nueva contraseña es: ${defaultPassword}
 
-      Por favor, inicia sesión y cambia tu contraseña lo antes posible.
-
       Saludos,
       Equipo RedMedia
     `;
