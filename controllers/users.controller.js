@@ -24,6 +24,8 @@ exports.registerUser = async function (req, res, next) {
       email: req.body.email,
       password: hashedPassword,
       usernickname: req.body.nick,
+      avatar: "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
+      coverImage:"https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg"
     };
 
     var createdUser = await UserService.createUser(newUser);
