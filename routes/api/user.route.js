@@ -10,7 +10,7 @@ const upload = multer({ storage: storage });
 router.post("/singin", UserController.loginUser);
 
 // Nueva ruta de registro
-router.post("/signup", UserController.registerUser);
+router.post("/register", UserController.registerUser);
 
 // Ruta para obtener las notificaciones
 router.get("/notificaciones",UserController.notificaciones)
