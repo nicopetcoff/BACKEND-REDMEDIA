@@ -9,7 +9,7 @@ exports.createUser = async function (userData) {
     var savedUser = await newUser.save();
     return savedUser;
   } catch (e) {
-    throw Error("Error al crear el usuario");
+    throw ("Error al crear el usuario");
   }
 };
 
@@ -20,6 +20,15 @@ exports.verificarEmailExistente = async function (email) {
     return existingUser !== null;
   } catch (e) {
     throw Error("Error al verificar el email");
+  }
+};
+
+exports.verificarNickExistente = async function (nick) {
+  try {
+    var existingNick = await User.findOne({ usernickname: nick });
+    return existingNick !== null;
+  } catch (e) {
+    throw Error("Error al verificar el nickname");
   }
 };
 

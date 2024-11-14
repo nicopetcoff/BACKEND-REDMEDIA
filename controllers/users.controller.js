@@ -8,8 +8,12 @@ _this = this;
 exports.registerUser = async function (req, res, next) {
   try {
     const emailExists = await UserService.verificarEmailExistente(req.body.email);
+    const nickExists = await UserService.verificarNickExistente(req.body.nick);
     if (emailExists) {
-      throw({message: "El email ya está registrado"})
+      throw ({message: "El email ya está registrado"})
+    }
+    if (nickExists) {
+      throw ({message: "El nickname ya está registrado"})
     }
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 8);
@@ -20,17 +24,19 @@ exports.registerUser = async function (req, res, next) {
       email: req.body.email,
       password: hashedPassword,
       usernickname: req.body.nick,
+      avatar: "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
+      coverImage:"https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg"
     };
 
     var createdUser = await UserService.createUser(newUser);
     var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
 
-    return res.status(201).json({
+     res.status(201).json({
       token: token,
       message: "Usuario creado exitosamente",
     });
   } catch (e) {
-    return res.status(400).json({
+     res.status(400).json({
       status: 400,
       message: e.message,
     });
