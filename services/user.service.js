@@ -72,26 +72,6 @@ exports.getUserById = async function (userId) {
   }
 };
 
-
-exports.updateUserAvatar = async function (userId, imageUrl) {
-  try {
-    // Actualiza el campo de avatar en la base de datos
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { avatar: imageUrl }, // Asegúrate de que el campo en tu modelo se llame 'avatar'
-      { new: true } // Retorna el documento actualizado
-    );
-
-    if (!updatedUser) {
-      throw new Error("Usuario no encontrado");
-    }
-
-    return updatedUser; // Retorna el usuario actualizado
-  } catch (error) {
-    throw new Error("Error al actualizar el avatar: " + error.message);
-  }
-};
-
 exports.getUsers = async () => {
   try {
     
@@ -106,5 +86,23 @@ exports.getUsers = async () => {
   } catch (error) {
     console.error('Error en getUsers service:', error);
     throw new Error('Error al obtener los usuarios');
+  }
+};
+
+exports.updateUserAttributes = async function (userId, updateData) {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return updatedUser;
+  } catch (error) {
+    throw new Error("Error al actualizar el usuario: " + error.message);
   }
 };
