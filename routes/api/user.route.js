@@ -21,7 +21,16 @@ router.get("/notificaciones",UserController.notificaciones)
 
 router.get("/me", Authorization, UserController.getUserData);
 
-router.post("/updateProfileImage", Authorization, upload.single('avatar'), UserController.updateProfileImage);
+router.patch("/me", 
+    Authorization, 
+    upload.fields([
+      { name: 'avatar', maxCount: 1 },
+      { name: 'coverImage', maxCount: 1 }
+    ]), 
+    UserController.updateUserAttributes
+  );
+
+
 
 
 module.exports = router;
