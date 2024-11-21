@@ -1,4 +1,4 @@
-var User = require("../models/User.model"); 
+var User = require("../models/User.model");
 
 _this = this;
 
@@ -9,7 +9,7 @@ exports.createUser = async function (userData) {
     var savedUser = await newUser.save();
     return savedUser;
   } catch (e) {
-    throw ("Error al crear el usuario");
+    throw "Error al crear el usuario";
   }
 };
 
@@ -41,23 +41,29 @@ exports.getUserByEmail = async function (email) {
   }
 };
 
-exports.getUserNotificaciones= async function(userId){
-  try{
-    const notificicaciones = await User.findById(userId).select('notificaciones');
-    return notificicaciones
-  }catch(e){
+exports.getUserNotificaciones = async function (userId) {
+  try {
+    const notificicaciones = await User.findById(userId).select(
+      "notificaciones"
+    );
+    return notificicaciones;
+  } catch (e) {
     throw Error("Error al obtener las notificaciones del usuario");
   }
-}
+};
 
-exports.actualizarResetToken = async function (email, resetToken, resetTokenExpires) {
+exports.actualizarResetToken = async function (
+  email,
+  resetToken,
+  resetTokenExpires
+) {
   try {
     // Actualizar el usuario con el nuevo token y su expiración
     const updatedUser = await User.findOneAndUpdate(
       { email: email }, // Buscar el usuario por email
       {
         resetToken: resetToken, // Establecer el nuevo token
-        resetTokenExpires: resetTokenExpires // Establecer la nueva fecha de expiración
+        resetTokenExpires: resetTokenExpires, // Establecer la nueva fecha de expiración
       },
       { new: true } // Retornar el documento actualizado
     );
@@ -68,7 +74,9 @@ exports.actualizarResetToken = async function (email, resetToken, resetTokenExpi
 
     return updatedUser; // Retornar el usuario actualizado
   } catch (error) {
-    throw new Error("Error al actualizar el token de restablecimiento: " + error.message);
+    throw new Error(
+      "Error al actualizar el token de restablecimiento: " + error.message
+    );
   }
 };
 
@@ -83,18 +91,19 @@ exports.getUserById = async function (userId) {
 
 exports.getUsers = async () => {
   try {
-    
-    const users = await User.find({}, { 
-      password: 0, 
-      resetToken: 0, 
-      resetTokenExpires: 0 
-    }).lean();
-    
-    
+    const users = await User.find(
+      {},
+      {
+        password: 0,
+        resetToken: 0,
+        resetTokenExpires: 0,
+      }
+    ).lean();
+
     return users;
   } catch (error) {
-    console.error('Error en getUsers service:', error);
-    throw new Error('Error al obtener los usuarios');
+    console.error("Error en getUsers service:", error);
+    throw new Error("Error al obtener los usuarios");
   }
 };
 
@@ -113,5 +122,45 @@ exports.updateUserAttributes = async function (userId, updateData) {
     return updatedUser;
   } catch (error) {
     throw new Error("Error al actualizar el usuario: " + error.message);
+  }
+};
+
+exports.addFollow = async (userId, targetUserId) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { following: targetUserId } }, // Evita duplicados
+      { new: true }
+    );
+
+    await User.findByIdAndUpdate(
+      targetUserId,
+      { $addToSet: { followers: userId } },
+      { new: true }
+    );
+
+    return user;
+  } catch (error) {
+    throw new Error("Error al seguir al usuario: " + error.message);
+  }
+};
+
+exports.removeFollow = async (userId, targetUserId) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { following: targetUserId } }, // Remueve el ID de la lista
+      { new: true }
+    );
+
+    await User.findByIdAndUpdate(
+      targetUserId,
+      { $pull: { followers: userId } },
+      { new: true }
+    );
+
+    return user;
+  } catch (error) {
+    throw new Error("Error al dejar de seguir al usuario: " + error.message);
   }
 };

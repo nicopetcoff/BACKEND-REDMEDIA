@@ -72,7 +72,6 @@ exports.crearPost = async (req, res) => {
       description: req.body.description || '',
       location: req.body.location,
       user: req.body.user,
-      userAvatar: req.body.userAvatar,
       image: imageUrls,
       sold: false,
       likes: 0,
