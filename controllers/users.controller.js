@@ -7,13 +7,15 @@ _this = this;
 
 exports.registerUser = async function (req, res, next) {
   try {
-    const emailExists = await UserService.verificarEmailExistente(req.body.email);
+    const emailExists = await UserService.verificarEmailExistente(
+      req.body.email
+    );
     const nickExists = await UserService.verificarNickExistente(req.body.nick);
     if (emailExists) {
-      throw ({message: "El email ya está registrado"})
+      throw { message: "El email ya está registrado" };
     }
     if (nickExists) {
-      throw ({message: "El nickname ya está registrado"})
+      throw { message: "El nickname ya está registrado" };
     }
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 8);
@@ -24,19 +26,21 @@ exports.registerUser = async function (req, res, next) {
       email: req.body.email,
       password: hashedPassword,
       usernickname: req.body.nick,
-      avatar: "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
-      coverImage:"https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg"
+      avatar:
+        "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
+      coverImage:
+        "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg",
     };
 
     var createdUser = await UserService.createUser(newUser);
     var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
 
-     res.status(201).json({
+    res.status(201).json({
       token: token,
       message: "Usuario creado exitosamente",
     });
   } catch (e) {
-     res.status(400).json({
+    res.status(400).json({
       status: 400,
       message: e.message,
     });
@@ -48,13 +52,13 @@ exports.loginUser = async function (req, res, next) {
     var user = await UserService.getUserByEmail(req.body.email);
 
     if (!user) {
-      throw({message: "El usuario no existe"})
+      throw { message: "El usuario no existe" };
     }
 
     var passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
 
     if (!passwordIsValid) {
-     throw({message:"Contraseña incorrecta"});
+      throw { message: "Contraseña incorrecta" };
     }
 
     var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
@@ -72,13 +76,15 @@ exports.loginUser = async function (req, res, next) {
 };
 
 // El resto del código permanece igual...
-exports.notificaciones = async function(req, res) {
+exports.notificaciones = async function (req, res) {
   try {
     const token = req.headers["x-access-token"];
     const decoded = jwt.verify(token, process.env.SECRET);
-    const notificicaciones = await UserService.getUserNotificaciones(decoded.id);
+    const notificicaciones = await UserService.getUserNotificaciones(
+      decoded.id
+    );
     return notificicaciones.notificaciones;
-  } catch(e) {
+  } catch (e) {
     throw Error("Error al obtener las notificaciones del usuario");
   }
 };
@@ -89,7 +95,7 @@ exports.getUserData = async function (req, res) {
     const user = await UserService.getUserById(userId);
 
     if (!user) {
-      throw({ message: "Usuario no encontrado"})
+      throw { message: "Usuario no encontrado" };
     }
 
     return res.status(200).json({
@@ -112,21 +118,17 @@ exports.getUserData = async function (req, res) {
   }
 };
 
-
 exports.getUsers = async (req, res) => {
   try {
-    
-
     const users = await UserService.getUsers();
-    
 
     return res.status(200).json({
       status: 200,
       data: users,
-      message: 'Usuarios obtenidos exitosamente',
+      message: "Usuarios obtenidos exitosamente",
     });
   } catch (error) {
-    console.error('Error en getUsers controller:', error);
+    console.error("Error en getUsers controller:", error);
     return res.status(400).json({
       status: 400,
       message: error.message,
@@ -137,11 +139,11 @@ exports.getUsers = async (req, res) => {
 exports.updateUserAttributes = async function (req, res) {
   try {
     const userId = req.userId;
-    let updateData = {...req.body};
-    
+    let updateData = { ...req.body };
+
     // Lista de campos permitidos para actualizar
-    const allowedFields = ['bio', 'avatar', 'coverImage', 'nombre', 'apellido'];
-    
+    const allowedFields = ["bio", "avatar", "coverImage", "nombre", "apellido"];
+
     // Si hay archivos, procesarlos primero
     if (req.files) {
       // Procesar avatar si existe
@@ -149,7 +151,7 @@ exports.updateUserAttributes = async function (req, res) {
         const avatarUrl = await uploadImage(req.files.avatar[0].buffer);
         updateData.avatar = avatarUrl;
       }
-      
+
       // Procesar coverImage si existe
       if (req.files.coverImage) {
         const coverUrl = await uploadImage(req.files.coverImage[0].buffer);
@@ -159,17 +161,20 @@ exports.updateUserAttributes = async function (req, res) {
 
     // Filtrar solo los campos permitidos
     const filteredData = Object.keys(updateData)
-      .filter(key => allowedFields.includes(key))
+      .filter((key) => allowedFields.includes(key))
       .reduce((obj, key) => {
         obj[key] = updateData[key];
         return obj;
       }, {});
 
     if (Object.keys(filteredData).length === 0) {
-      throw({ message: "No se proporcionaron campos válidos para actualizar" });
+      throw { message: "No se proporcionaron campos válidos para actualizar" };
     }
 
-    const updatedUser = await UserService.updateUserAttributes(userId, filteredData);
+    const updatedUser = await UserService.updateUserAttributes(
+      userId,
+      filteredData
+    );
 
     return res.status(200).json({
       status: 200,
@@ -182,13 +187,56 @@ exports.updateUserAttributes = async function (req, res) {
         avatar: updatedUser.avatar,
         coverImage: updatedUser.coverImage,
       },
-      message: "Usuario actualizado correctamente"
+      message: "Usuario actualizado correctamente",
     });
-
   } catch (error) {
     return res.status(400).json({
       status: 400,
-      message: error.message
+      message: error.message,
     });
+  }
+};
+
+exports.handleFollow = async (req, res) => {
+  try {
+    const userId = req.userId; // ID del usuario autenticado (desde el token)
+    const targetUserId = req.params.id; // ID del usuario objetivo
+    const { action } = req.body; // "follow" o "unfollow"
+
+    // Verificar que el usuario objetivo existe
+    const targetUser = await UserService.getUserById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Verificar que el usuario no se está siguiendo a sí mismo
+    if (userId === targetUserId) {
+      return res
+        .status(400)
+        .json({ message: "No puedes seguirte o dejar de seguirte a ti mismo" });
+    }
+
+    let message;
+    if (action === "follow") {
+      // Llamar al servicio para seguir al usuario
+      await UserService.addFollow(userId, targetUserId);
+      message = "Has comenzado a seguir al usuario";
+    } else if (action === "unfollow") {
+      // Llamar al servicio para dejar de seguir al usuario
+      await UserService.removeFollow(userId, targetUserId);
+      message = "Has dejado de seguir al usuario";
+    } else {
+      return res
+        .status(400)
+        .json({ message: "Acción inválida. Usa 'follow' o 'unfollow'" });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message,
+    });
+  } catch (error) {
+    console.error("Error en handleFollow:", error);
+    return res.status(500).json({ message: "Error al procesar la solicitud" });
   }
 };

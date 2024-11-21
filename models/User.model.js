@@ -8,6 +8,8 @@ var UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   bio: { type: String, default: "" },
   usernickname: { type: String, required: true, unique: true }, // Campo requerido
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Seguidores
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Seguidos
   resetToken: { type: String, default: "" },
   resetTokenExpires: { type: Date, default: null },
   avatar: { type: String, default: "" }, // Nuevo campo para la imagen de perfil
