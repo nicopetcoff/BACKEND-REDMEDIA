@@ -33,5 +33,7 @@ router.patch("/me",
 // Ruta para seguir o dejar de seguir a un usuario
 router.patch("/:id/follow", Authorization, UserController.handleFollow);
 
+// Ruta para buscar usuarios
+router.get("/search", Authorization, UserController.searchUsers);
 
 module.exports = router;

@@ -164,3 +164,29 @@ exports.removeFollow = async (userId, targetUserId) => {
     throw new Error("Error al dejar de seguir al usuario: " + error.message);
   }
 };
+
+exports.searchUsers = async (query) => {
+  try {
+    const users = await User.find(
+      {
+        $or: [
+          { nombre: { $regex: query, $options: "i" } },
+          { apellido: { $regex: query, $options: "i" } },
+          { usernickname: { $regex: query, $options: "i" } },
+          { email: { $regex: query, $options: "i" } },
+        ],
+      },
+      {
+        password: 0, // Excluye la contraseña de los resultados
+        resetToken: 0,
+        resetTokenExpires: 0,
+      }
+    ).lean();
+
+    return users;
+  } catch (error) {
+    console.error("Error en searchUsers (service):", error);
+    throw new Error("Error al realizar la búsqueda de usuarios");
+  }
+};
+

@@ -14,12 +14,18 @@ const upload = multer({
 });
 
 router.get("/", PostController.getAllPosts);
-router.get("/:id", PostController.getPostById);
+
 router.post(
   "/crear",
   Authorization,
   upload.array("images", 10),
   PostController.crearPost
 );
+
+router.post("/:id/interactions", Authorization, PostController.handleInteractions);
+
+router.get("/following", Authorization, PostController.getPostsFromFollowing);
+
+router.get("/:id", PostController.getPostById);
 
 module.exports = router;

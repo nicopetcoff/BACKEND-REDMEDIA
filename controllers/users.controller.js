@@ -240,3 +240,39 @@ exports.handleFollow = async (req, res) => {
     return res.status(500).json({ message: "Error al procesar la solicitud" });
   }
 };
+
+exports.searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query; // Recoge el parámetro `query` de la URL
+
+    if (!query) {
+      return res.status(400).json({
+        status: 400,
+        message: "Debe proporcionar un término de búsqueda",
+      });
+    }
+
+    // Delegar la búsqueda al servicio
+    const users = await UserService.searchUsers(query);
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        status: 404,
+        message: "No se encontraron usuarios",
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      data: users,
+      message: "Usuarios encontrados exitosamente",
+    });
+  } catch (error) {
+    console.error("Error en searchUsers:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Error al realizar la búsqueda",
+    });
+  }
+};
+
