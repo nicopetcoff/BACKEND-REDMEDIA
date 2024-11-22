@@ -23,6 +23,16 @@ exports.verificarEmailExistente = async function (email) {
   }
 };
 
+//verificar id de usuario
+exports.verificarIdExistente = async function (userData) {
+  try {
+    var existingUser = await User.findOne({ email: userData.email });
+    return existingUser.userId === userData.userId;
+  }catch(e){
+    throw Error("Error al loguearse");
+  }
+}
+
 exports.verificarNickExistente = async function (nick) {
   try {
     var existingNick = await User.findOne({ usernickname: nick });
