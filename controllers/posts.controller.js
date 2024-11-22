@@ -22,7 +22,7 @@ exports.getAllPosts = async (req, res) => {
 exports.getPostById = async (req, res) => {
   try {
     const post = await PostsService.getPostById(req.params.id);
-    console.log("pasa por aca")
+
     if (!post) {
       return res.status(404).json({
         status: 404,
@@ -104,14 +104,18 @@ exports.handleInteractions = async (req, res) => {
     // Buscar el usernickname del usuario autenticado
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "Usuario autenticado no encontrado" });
+      return res
+        .status(404)
+        .json({ message: "Usuario autenticado no encontrado" });
     }
     const username = user.usernickname; // Obtener el usernickname
 
     // Validar si el post existe
     const post = await PostsService.getPostById(postId);
     if (!post) {
-      return res.status(404).json({ status: 404, message: "Post no encontrado" });
+      return res
+        .status(404)
+        .json({ status: 404, message: "Post no encontrado" });
     }
 
     if (action === "like") {
@@ -124,7 +128,11 @@ exports.handleInteractions = async (req, res) => {
       });
     } else if (action === "comment") {
       // Agregar comentario al post con el username
-      const updatedPost = await PostsService.addComment(postId, username, comment);
+      const updatedPost = await PostsService.addComment(
+        postId,
+        username,
+        comment
+      );
       return res.status(200).json({
         status: 200,
         data: updatedPost,
@@ -147,23 +155,18 @@ exports.handleInteractions = async (req, res) => {
 
 exports.getPostsFromFollowing = async (req, res) => {
   try {
-    console.log('1. Entrando al controlador getPostsFromFollowing');
-    console.log('2. userId recibido:', req.userId);
-
     const posts = await PostsService.getPostsFromFollowing(req.userId);
-    
-    console.log('5. Posts obtenidos:', posts);
 
     res.status(200).json({
       status: 200,
       data: posts,
-      message: "Posts obtenidos exitosamente"
+      message: "Posts obtenidos exitosamente",
     });
   } catch (error) {
-    console.error('6. Error en controlador:', error);
+    console.error("6. Error en controlador:", error);
     res.status(400).json({
       status: 400,
-      message: error.message
+      message: error.message,
     });
   }
 };
