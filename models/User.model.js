@@ -7,13 +7,13 @@ var UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   bio: { type: String, default: "" },
-  usernickname: { type: String, required: true, unique: true }, // Campo requerido
-  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Seguidores
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Seguidos
+  usernickname: { type: String, required: true, unique: true },
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   resetToken: { type: String, default: "" },
   resetTokenExpires: { type: Date, default: null },
-  avatar: { type: String, default: "" }, // Nuevo campo para la imagen de perfil
-  coverImage: { type: String, default: "" }, // Nuevo campo para la imagen de perfil
+  avatar: { type: String, default: "" },
+  coverImage: { type: String, default: "" },
   notificaciones: [
     {
       type: { type: String },
@@ -29,6 +29,8 @@ var UserSchema = new mongoose.Schema({
 });
 
 UserSchema.plugin(mongoosePaginate);
-const User = mongoose.model("User", UserSchema);
+
+// Verificar si el modelo ya existe antes de definirlo
+const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 module.exports = User;
