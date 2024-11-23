@@ -12,6 +12,9 @@ router.get("/", Authorization,UserController.getUsers);
 // Ruta para el login
 router.post("/singin", UserController.loginUser);
 
+//autenticacion con google
+router.post("/google", UserController.googleLogin);
+
 // Nueva ruta de registro
 router.post("/register", UserController.registerUser);
 
