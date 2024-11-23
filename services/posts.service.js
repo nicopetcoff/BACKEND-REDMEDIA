@@ -1,6 +1,6 @@
 // services/posts.service.js
 const Post = require("../models/post.model");
-const User = require("../models/user.model");
+const User = require("../models/User.model");
 
 exports.getAllPosts = async function () {
   try {

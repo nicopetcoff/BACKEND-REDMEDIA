@@ -1,6 +1,6 @@
 const PostsService = require("../services/posts.service");
 const { uploadToCloudinary } = require("../services/cloudinary");
-const User = require("../models/user.model");
+const User = require("../models/User.model");
 
 exports.getAllPosts = async (req, res) => {
   try {
