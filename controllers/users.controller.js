@@ -276,3 +276,4 @@ exports.searchUsers = async (req, res) => {
   }
 };
 
+console.log("Users controller loaded");
