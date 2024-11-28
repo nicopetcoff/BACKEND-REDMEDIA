@@ -200,3 +200,20 @@ exports.searchUsers = async (query) => {
   }
 };
 
+exports.confirmUser = async function (userId) {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { isConfirmed: true },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return updatedUser;
+  } catch (error) {
+    throw new Error("Error al confirmar el usuario: " + error.message);
+  }
+};

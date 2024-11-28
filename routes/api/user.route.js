@@ -18,6 +18,8 @@ router.post("/google", UserController.googleLogin);
 // Nueva ruta de registro
 router.post("/register", UserController.registerUser);
 
+router.get("/confirm-user/:token", UserController.confirmUser);
+
 // Ruta para obtener las notificaciones
 router.get("/notificaciones",UserController.notificaciones)
 
