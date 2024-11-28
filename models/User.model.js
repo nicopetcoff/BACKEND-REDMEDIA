@@ -14,6 +14,7 @@ var UserSchema = new mongoose.Schema({
   resetTokenExpires: { type: Date, default: null },
   avatar: { type: String, default: "" },
   coverImage: { type: String, default: "" },
+  isConfirmed: { type: Boolean, default: false },
   notificaciones: [
     {
       type: { type: String },
