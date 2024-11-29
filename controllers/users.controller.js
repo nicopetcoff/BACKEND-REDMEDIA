@@ -27,6 +27,7 @@ exports.registerUser = async function (req, res, next) {
       apellido: req.body.lastName,
       email: req.body.email,
       password: hashedPassword,
+      genero: req.body.genero || "Not specified",
       usernickname: req.body.nick,
       avatar:
         "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
@@ -37,17 +38,12 @@ exports.registerUser = async function (req, res, next) {
 
     const createdUser = await UserService.createUser(newUser);
 
-    // Generar el token de confirmación
-    const confirmToken = jwt.sign(
-      { id: createdUser._id },
-      process.env.SECRET,
-      { expiresIn: "24h" } // El token expira en 24 horas
-    );
+    const confirmToken = jwt.sign({ id: createdUser._id }, process.env.SECRET, {
+      expiresIn: "24h",
+    });
 
-    // Crear el enlace de confirmación
     const confirmLink = `https://redmedia.vercel.app/confirm-user/${confirmToken}`;
 
-    // Enviar correo de confirmación
     const subject = "Confirma tu cuenta - RedMedia";
     const html = `
       <!DOCTYPE html>
@@ -72,7 +68,7 @@ exports.registerUser = async function (req, res, next) {
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           }
           .header {
-            background-color: #4CAF50;
+            background-color: #007BFF;
             color: #ffffff;
             text-align: center;
             padding: 20px;
@@ -91,7 +87,7 @@ exports.registerUser = async function (req, res, next) {
           }
           .btn {
             display: inline-block;
-            background-color: #4CAF50;
+            background-color: #007BFF;
             color: #ffffff;
             text-decoration: none;
             padding: 10px 20px;
@@ -100,7 +96,7 @@ exports.registerUser = async function (req, res, next) {
             font-size: 16px;
           }
           .btn:hover {
-            background-color: #45a049;
+            background-color: #0056b3;
           }
           .footer {
             text-align: center;
@@ -114,7 +110,7 @@ exports.registerUser = async function (req, res, next) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Red Media</h1>
+            <h1>Confirma tu Cuenta</h1>
           </div>
           <div class="content">
             <p>Hola <strong>${createdUser.nombre}</strong>,</p>
@@ -131,7 +127,6 @@ exports.registerUser = async function (req, res, next) {
       </html>
     `;
 
-    // Usa el HTML en lugar del texto plano
     await mailSender(createdUser.email, subject, html);
 
     res.status(201).json({
@@ -154,19 +149,12 @@ exports.loginUser = async function (req, res, next) {
       return res.status(404).json({ message: "El usuario no existe" });
     }
 
-    // Verificar si el usuario ha confirmado su cuenta
     if (!user.isConfirmed) {
-      // Generar un nuevo token de confirmación
-      const confirmToken = jwt.sign(
-        { id: user._id },
-        process.env.SECRET,
-        { expiresIn: "24h" } // El token expira en 24 horas
-      );
+      const confirmToken = jwt.sign({ id: user._id }, process.env.SECRET, {
+        expiresIn: "24h",
+      });
 
-      // Crear un nuevo enlace de confirmación
       const confirmLink = `https://redmedia.vercel.app/confirm-user/${confirmToken}`;
-
-      // Enviar correo de confirmación
       const subject = "Confirma tu cuenta - RedMedia";
       const html = `
         <!DOCTYPE html>
@@ -191,7 +179,7 @@ exports.loginUser = async function (req, res, next) {
               box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             }
             .header {
-              background-color: #4CAF50;
+              background-color: #007BFF;
               color: #ffffff;
               text-align: center;
               padding: 20px;
@@ -210,7 +198,7 @@ exports.loginUser = async function (req, res, next) {
             }
             .btn {
               display: inline-block;
-              background-color: #4CAF50;
+              background-color: #007BFF;
               color: #ffffff;
               text-decoration: none;
               padding: 10px 20px;
@@ -219,7 +207,7 @@ exports.loginUser = async function (req, res, next) {
               font-size: 16px;
             }
             .btn:hover {
-              background-color: #45a049;
+              background-color: #0056b3;
             }
             .footer {
               text-align: center;
@@ -233,7 +221,7 @@ exports.loginUser = async function (req, res, next) {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Red Media</h1>
+              <h1>Confirma tu Cuenta</h1>
             </div>
             <div class="content">
               <p>Hola <strong>${user.nombre}</strong>,</p>
@@ -250,7 +238,6 @@ exports.loginUser = async function (req, res, next) {
         </html>
       `;
 
-      // Reenviar el correo
       await mailSender(user.email, subject, html);
 
       return res.status(403).json({
@@ -259,7 +246,6 @@ exports.loginUser = async function (req, res, next) {
       });
     }
 
-    // Verificar si la contraseña es válida
     const passwordIsValid = bcrypt.compareSync(
       req.body.password,
       user.password
@@ -269,7 +255,6 @@ exports.loginUser = async function (req, res, next) {
       return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
-    // Generar un token para el usuario
     const token = jwt.sign({ id: user._id }, process.env.SECRET);
 
     return res.status(200).json({
@@ -489,7 +474,6 @@ exports.confirmUser = async function (req, res) {
   const { token } = req.params;
 
   try {
-    
     const decoded = jwt.verify(token, process.env.SECRET); // Decodificar el token
     const userId = decoded.id;
 
@@ -511,5 +495,108 @@ exports.confirmUser = async function (req, res) {
     } else {
       return res.status(500).json({ message: "Error al confirmar el usuario" });
     }
+  }
+};
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.userId; // Obtener el ID del usuario desde el token
+
+    // Verificar si el usuario existe
+    const user = await UserService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Eliminar el usuario
+    await UserService.deleteUser(userId);
+
+    // Enviar correo de confirmación de eliminación
+    const subject = "Tu cuenta ha sido eliminada - RedMedia";
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cuenta Eliminada</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            background-color: #007BFF;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .content {
+            padding: 20px;
+            line-height: 1.6;
+            color: #333333;
+          }
+          .content p {
+            margin: 10px 0;
+          }
+          .btn {
+            display: inline-block;
+            background-color: #007BFF;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+          }
+          .btn:hover {
+            background-color: #0056b3;
+          }
+          .footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #777777;
+            background-color: #f4f4f4;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Cuenta Eliminada</h1>
+          </div>
+          <div class="content">
+            <p>Hola <strong>${user.nombre}</strong>,</p>
+            <p>Lamentamos verte partir. Tu cuenta ha sido eliminada de <strong>RedMedia</strong>. Si esto fue un error, por favor contáctanos de inmediato.</p>
+            <p>Gracias por haber sido parte de nuestra comunidad.</p>
+          </div>
+          <div class="footer">
+            <p>Este correo fue enviado desde Red Media App.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await mailSender(user.email, subject, html);
+
+    return res.status(200).json({ message: "Cuenta eliminada exitosamente" });
+  } catch (error) {
+    console.error("Error en deleteAccount:", error);
+    return res.status(500).json({ message: "Error al eliminar la cuenta" });
   }
 };

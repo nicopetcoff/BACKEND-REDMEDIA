@@ -23,6 +23,9 @@ router.get("/notificaciones",UserController.notificaciones)
 
 router.get("/me", Authorization, UserController.getUserData);
 
+// Ruta para eliminar una cuenta
+router.delete("/me", Authorization, UserController.deleteAccount);
+
 router.patch("/me", 
     Authorization, 
     upload.fields([

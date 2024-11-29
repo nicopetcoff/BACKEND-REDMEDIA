@@ -6,6 +6,11 @@ var UserSchema = new mongoose.Schema({
   apellido: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  genero: { 
+    type: String, 
+    enum: ["Masculino", "Femenino", "Not specified"], 
+    default: "Not specified"
+  },
   bio: { type: String, default: "" },
   usernickname: { type: String, required: true, unique: true },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
