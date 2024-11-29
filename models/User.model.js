@@ -5,7 +5,12 @@ var UserSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   apellido: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: false },
+  password: { type: String, required: true },
+  genero: { 
+    type: String, 
+    enum: ["Masculino", "Femenino", "Not specified"], 
+    default: "Not specified"
+  },
   userId: { type: String, required: false },
   bio: { type: String, default: "" },
   usernickname: { type: String, required: true, unique: true },
@@ -32,7 +37,6 @@ var UserSchema = new mongoose.Schema({
 
 UserSchema.plugin(mongoosePaginate);
 
-// Verificar si el modelo ya existe antes de definirlo
 const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 module.exports = User;

@@ -217,3 +217,10 @@ exports.confirmUser = async function (userId) {
     throw new Error("Error al confirmar el usuario: " + error.message);
   }
 };
+exports.deleteUser = async (userId) => {
+  try {
+    await User.findByIdAndDelete(userId); // Usar Mongoose para eliminar el usuario por ID
+  } catch (error) {
+    throw new Error("Error al eliminar el usuario: " + error.message);
+  }
+};
