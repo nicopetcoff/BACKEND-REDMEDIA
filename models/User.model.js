@@ -11,6 +11,7 @@ var UserSchema = new mongoose.Schema({
     enum: ["Masculino", "Femenino", "Not specified"], 
     default: "Not specified"
   },
+  userId: { type: String, required: false },
   bio: { type: String, default: "" },
   usernickname: { type: String, required: true, unique: true },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -36,7 +37,6 @@ var UserSchema = new mongoose.Schema({
 
 UserSchema.plugin(mongoosePaginate);
 
-// Verificar si el modelo ya existe antes de definirlo
 const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 module.exports = User;
