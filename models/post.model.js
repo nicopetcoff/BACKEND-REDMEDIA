@@ -1,23 +1,25 @@
+// models/post.model.js
 const mongoose = require("mongoose");
 
-// Esquema de los posts
-const PostSchema = new mongoose.Schema({
-  image: { type: [String], required: true }, // Cambiamos a un array de strings
-  title: { type: String, required: true },
-  user: { type: String, required: true },
-  userAvatar: { type: String },
-  location: { type: String },
-  sold: { type: Boolean, default: false },
-  likes: { type: Number, default: 0 },
-  comments: [
-    {
-      username: { type: String },
-      comment: { type: String },
-    },
-  ],
-});
+const PostSchema = new mongoose.Schema(
+  {
+    image: { type: [String], required: true },
+    title: { type: String, required: true },
+    description: { type: String },
+    user: { type: String, required: true },
+    location: { type: String },
+    likes: { type: [String], default: [] }, // Array de usuarios que dieron "me gusta"
+    comments: [
+      {
+        username: { type: String },
+        comment: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+  },
+  {
+    timestamps: true, // createdAt y updatedAt
+  }
+);
 
-// Creamos el modelo Post basado en el esquema
-const Post = mongoose.model("Post", PostSchema);
-
-module.exports = Post;
+module.exports = mongoose.model("Post", PostSchema);

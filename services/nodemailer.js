@@ -26,7 +26,6 @@ const mailSender = async (to, subject, text) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log("Message sent: %s", info.messageId);
     return { message: "Success!" };
   } catch (err) {
     console.error("Error en el envío:", err);
