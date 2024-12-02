@@ -153,6 +153,7 @@ exports.googleLogin = async function (req, res, next) {
       var user = await UserService.getUserByEmail(req.body.email);
       var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
 
+    // Enviar respuesta al frontend
     return res.status(200).json({
       token: token,
       message: "Inicio de sesión exitoso",
@@ -311,6 +312,9 @@ exports.loginUser = async function (req, res, next) {
       status: 500,
       message: "Error al iniciar sesión",
     });
+  } catch (error) {
+    console.error("Error al verificar el token de Firebase:", error);
+    return res.status(500).json({ message: "Error durante el inicio de sesión", error: error.message });
   }
 };
 
@@ -642,5 +646,35 @@ exports.deleteAccount = async (req, res) => {
   } catch (error) {
     console.error("Error en deleteAccount:", error);
     return res.status(500).json({ message: "Error al eliminar la cuenta" });
+  }
+};
+
+
+// Controlador para enviar un enlace de restablecimiento de contraseña
+exports.sendPasswordResetEmail = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Verificar si el correo electrónico existe en la base de datos de usuarios
+    const emailExists = await UserService.verificarEmailExistente(email);
+    if (!emailExists) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    // Generar el enlace de restablecimiento de contraseña usando Firebase
+    const auth = admin.auth();
+    const resetLink = await auth.generatePasswordResetLink(email);
+
+    // Configuración del correo
+    const subject = "Recuperación de Contraseña";
+    const text = `Haz clic en el siguiente enlace para restablecer tu contraseña: ${resetLink}`;
+
+    // Enviar el correo electrónico con el enlace de Firebase
+    await mailSender(email, subject, text);
+
+    res.json({ message: "Correo electrónico enviado con éxito", link: resetLink });
+  } catch (error) {
+    console.error("Error en el controlador de correo:", error);
+    res.status(500).json({ error: error.message });
   }
 };

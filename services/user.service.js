@@ -5,8 +5,10 @@ _this = this;
 // Crear un nuevo usuario
 exports.createUser = async function (userData) {
   try {
+    console.log("Datos recibidos en createUser para crear nuevo usuario:", userData);
     var newUser = new User(userData);
     var savedUser = await newUser.save();
+    console.log("Usuario guardado en la base de datos:", savedUser);
     return savedUser;
   } catch (e) {
     throw "Error al crear el usuario";
