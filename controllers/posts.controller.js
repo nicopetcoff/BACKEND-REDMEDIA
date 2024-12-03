@@ -253,3 +253,42 @@ exports.publishPost = async (req, res) => {
     res.status(500).json({ error: "Hubo un error al crear el post" });
   }
 };
+
+// controllers/posts.controller.js
+
+exports.toggleFavoritePost = async (req, res) => {
+  try {
+    const postId = req.params.id; // El ID del post que el usuario quiere marcar como favorito
+    const userId = req.userId; // El ID del usuario que está autenticado
+
+    // Verificar si el post existe
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post no encontrado" });
+    }
+
+    // Obtener al usuario
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Verificar si el post ya es favorito
+    const isFavorite = user.favoritePosts.includes(postId);
+
+    if (isFavorite) {
+      // Si el post ya es favorito, lo eliminamos de la lista de favoritos
+      user.favoritePosts = user.favoritePosts.filter((id) => id.toString() !== postId.toString());
+      await user.save();
+      return res.status(200).json({ message: "Post eliminado de favoritos" });
+    } else {
+      // Si el post no es favorito, lo agregamos a la lista de favoritos
+      user.favoritePosts.push(postId);
+      await user.save();
+      return res.status(200).json({ message: "Post agregado a favoritos" });
+    }
+  } catch (error) {
+    console.error("Error al manejar el favorito:", error);
+    res.status(500).json({ message: "Error al manejar el favorito del post" });
+  }
+};

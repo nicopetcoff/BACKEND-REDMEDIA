@@ -224,3 +224,21 @@ exports.deleteUser = async (userId) => {
     throw new Error("Error al eliminar el usuario: " + error.message);
   }
 };
+
+// Método para obtener los posts favoritos de un usuario
+exports.getFavoritePosts = async function (userId) {
+  try {
+    // Buscar al usuario por su ID y poblar el campo favoritePosts con los detalles completos de los posts
+    const user = await User.findById(userId).populate('favoritePosts');
+    
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Devolver los posts favoritos
+    return user.favoritePosts;
+  } catch (error) {
+    console.error('Error al obtener los posts favoritos:', error);
+    throw new Error('Error al obtener los posts favoritos');
+  }
+};

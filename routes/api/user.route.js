@@ -44,4 +44,7 @@ router.patch("/:id/follow", Authorization, UserController.handleFollow);
 // Ruta para buscar usuarios
 router.get("/search", Authorization, UserController.searchUsers);
 
+// Ruta para obtener los posts favoritos de un usuario
+router.get("/favorites", Authorization, UserController.getFavoritePosts);
+
 module.exports = router;

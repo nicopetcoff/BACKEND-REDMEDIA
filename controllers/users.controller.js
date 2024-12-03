@@ -650,3 +650,26 @@ exports.deleteAccount = async (req, res) => {
     return res.status(500).json({ message: "Error al eliminar la cuenta" });
   }
 };
+
+// Ruta para obtener los posts favoritos de un usuario
+exports.getFavoritePosts = async (req, res) => {
+  const userId = req.userId; // ID del usuario desde el token
+
+  try {
+    // Llamamos al servicio para obtener los posts favoritos
+    const favoritePosts = await UserService.getFavoritePosts(userId);
+
+    // Retornamos los posts favoritos
+    return res.status(200).json({
+      status: 200,
+      data: favoritePosts,
+      message: 'Posts favoritos obtenidos exitosamente',
+    });
+  } catch (error) {
+    console.error('Error al obtener los posts favoritos:', error);
+    return res.status(500).json({
+      status: 500,
+      message: 'Error al obtener los posts favoritos',
+    });
+  }
+};
