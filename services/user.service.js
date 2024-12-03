@@ -1,5 +1,7 @@
 var User = require("../models/User.model");
 
+const PostsService = require("./posts.service"); // Importar PostsService
+
 _this = this;
 
 // Crear un nuevo usuario
@@ -229,16 +231,71 @@ exports.deleteUser = async (userId) => {
 exports.getFavoritePosts = async function (userId) {
   try {
     // Buscar al usuario por su ID y poblar el campo favoritePosts con los detalles completos de los posts
-    const user = await User.findById(userId).populate('favoritePosts');
-    
+    const user = await User.findById(userId).populate("favoritePosts");
+
     if (!user) {
-      throw new Error('Usuario no encontrado');
+      throw new Error("Usuario no encontrado");
     }
 
     // Devolver los posts favoritos
     return user.favoritePosts;
   } catch (error) {
-    console.error('Error al obtener los posts favoritos:', error);
-    throw new Error('Error al obtener los posts favoritos');
+    console.error("Error al obtener los posts favoritos:", error);
+    throw new Error("Error al obtener los posts favoritos");
+  }
+};
+
+// Dentro del servicio de usuarios (UserService)
+
+exports.calculateUserLevel = async function (usernickname) {
+  try {
+    // Obtener la cantidad de posts y comentarios del usuario
+    const { postCount, commentCount } =
+      await PostsService.getUserPostsAndCommentsCount(usernickname);
+
+    // Inicializar el nivel
+    let level = 1;
+
+    // Calcular el nivel según los criterios
+    if (postCount >= 4 && commentCount >= 4) {
+      level = 4; // Nivel 4: 4 posts y 4 comentarios
+    } else if (postCount >= 4) {
+      level = 3; // Nivel 3: 4 posts
+    } else if (postCount >= 2) {
+      level = 2; // Nivel 2: 2 posts
+    }
+
+    // Actualizar el nivel del usuario en la base de datos
+    const user = await User.findOne({ usernickname: usernickname });
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    // Guardar el nivel calculado
+    user.level = level;
+    await user.save();
+
+    return level; // Retornar el nivel calculado
+  } catch (error) {
+    console.error("Error calculando el nivel del usuario:", error);
+    throw new Error("Error al calcular el nivel del usuario");
+  }
+};
+
+exports.getUserByNickname = async function (usernickname) {
+  try {
+    // Busca el usuario por nickname, sin importar mayúsculas/minúsculas
+    const user = await User.findOne({
+      usernickname: { $regex: new RegExp("^" + usernickname + "$", "i") },
+    });
+
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    return user;
+  } catch (error) {
+    console.error("Error en getUserByNickname:", error);
+    throw new Error("Error al obtener el usuario");
   }
 };
