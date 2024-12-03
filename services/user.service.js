@@ -5,10 +5,8 @@ _this = this;
 // Crear un nuevo usuario
 exports.createUser = async function (userData) {
   try {
-    console.log("Datos recibidos en createUser para crear nuevo usuario:", userData);
     var newUser = new User(userData);
     var savedUser = await newUser.save();
-    console.log("Usuario guardado en la base de datos:", savedUser);
     return savedUser;
   } catch (e) {
     throw "Error al crear el usuario";
@@ -30,10 +28,10 @@ exports.verificarIdExistente = async function (userData) {
   try {
     var existingUser = await User.findOne({ email: userData.email });
     return existingUser.userId === userData.userId;
-  }catch(e){
+  } catch (e) {
     throw Error("Error al loguearse");
   }
-}
+};
 
 exports.verificarNickExistente = async function (nick) {
   try {
