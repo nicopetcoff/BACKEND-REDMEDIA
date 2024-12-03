@@ -13,6 +13,25 @@ exports.getAllPosts = async function () {
   }
 };
 
+exports.getPostsByUser = async function (userId) {
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    const posts = await Post.find({ user: user.usernickname })
+      .sort({ createdAt: -1 }) // Orden descendente por fecha
+      .lean();
+
+    return posts;
+  } catch (error) {
+    console.error("Error en getPostsByUser:", error);
+    throw new Error("Error al obtener los posts del usuario");
+  }
+};
+
 exports.getPostById = async function (id) {
   try {
     const post = await Post.findById(id).lean();
@@ -23,8 +42,6 @@ exports.getPostById = async function (id) {
 };
 
 exports.crearPost = async function (post) {
-  console.log("service", post);
-
   // Crea una instancia de Post con los datos recibidos
   const nuevoPost = new Post({
     title: post.title,
@@ -32,16 +49,13 @@ exports.crearPost = async function (post) {
     location: post.location,
     user: post.user,
     userAvatar: post.userAvatar,
-    image: post.images ||  [], // Si no hay imágenes, se guarda un array vacío
+    image: post.images || [], // Si no hay imágenes, se guarda un array vacío
     videos: post.videos || [], // Si no hay videos, se guarda un array vacío
   });
-
-  console.log("post en service creado");
 
   try {
     // Guardamos el nuevo post en MongoDB
     const savedPost = await nuevoPost.save();
-    console.log("savedPost", savedPost);
 
     // Retornamos el post guardado
     return savedPost;
@@ -95,22 +109,25 @@ exports.getPostsFromFollowing = async function (userId) {
     }
 
     // Obtener los documentos de usuarios seguidos
-    const followedUsers = await User.find({
-      '_id': { $in: currentUser.following }
-    }, 'usernickname');
+    const followedUsers = await User.find(
+      {
+        _id: { $in: currentUser.following },
+      },
+      "usernickname"
+    );
 
     // Obtener todos los usernicknames (incluido el del usuario actual)
     const usernames = [
       currentUser.usernickname,
-      ...followedUsers.map(user => user.usernickname)
+      ...followedUsers.map((user) => user.usernickname),
     ];
 
     // Buscar posts tanto del usuario como de los que sigue
     const posts = await Post.find({
-      'user': { $in: usernames }
+      user: { $in: usernames },
     })
-    .sort({ createdAt: -1 })
-    .lean();
+      .sort({ createdAt: -1 })
+      .lean();
 
     return posts;
   } catch (error) {

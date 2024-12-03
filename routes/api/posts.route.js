@@ -12,6 +12,8 @@ const upload = multer({
 
 router.get("/", PostController.getAllPosts);
 
+router.get("/me", Authorization, PostController.getUserPosts);
+
 router.post(
   "/crear",
   Authorization,

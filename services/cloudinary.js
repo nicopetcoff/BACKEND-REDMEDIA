@@ -1,5 +1,5 @@
 const cloudinary = require("cloudinary").v2;
-const stream = require('stream');
+const stream = require("stream");
 
 cloudinary.config({
   cloud_name: "dxgbzpvaq",
@@ -20,7 +20,6 @@ const uploadImage = async (imageBuffer) => {
       .end(imageBuffer);
   })
     .then((result) => {
-      console.log(result);
       return result;
     })
     .catch((error) => {
@@ -36,13 +35,12 @@ const uploadVideo = (videoBuffer) => {
     passthroughStream.end(videoBuffer); // Convertir el buffer en un flujo
 
     const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: 'video' },
+      { resource_type: "video" },
       (error, result) => {
         if (error) {
           console.error("Error subiendo el video:", error);
           return reject(error);
         }
-        console.log("Video subido:", result.secure_url);
         resolve(result.secure_url);
       }
     );
