@@ -1,4 +1,5 @@
 var UserService = require("../services/user.service");
+var PostService = require("../services/posts.service");
 var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
 const { uploadImage } = require("../services/cloudinary");
@@ -141,33 +142,37 @@ exports.registerUser = async function (req, res, next) {
   }
 };
 exports.googleLogin = async function (req, res, next) {
-  try{
-    const emailExists = await UserService.verificarEmailExistente(req.body.email);
+  try {
+    const emailExists = await UserService.verificarEmailExistente(
+      req.body.email
+    );
     //si el email ya existe, verifica si el id coincide para iniciar sesion
     if (emailExists) {
-      const userData={email:req.body.email, userId:req.body.userId}
+      const userData = { email: req.body.email, userId: req.body.userId };
       const idCoincide = await UserService.verificarIdExistente(userData);
-      if(!idCoincide){
-        throw({message: "Error al iniciar sesion"})
+      if (!idCoincide) {
+        throw { message: "Error al iniciar sesion" };
       }
       var user = await UserService.getUserByEmail(req.body.email);
       var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
 
-    // Enviar respuesta al frontend
-    return res.status(200).json({
-      token: token,
-      message: "Inicio de sesión exitoso",
-    });
-    }else{ //sino lo registrara
+      // Enviar respuesta al frontend
+      return res.status(200).json({
+        token: token,
+        message: "Inicio de sesión exitoso",
+      });
+    } else {
+      //sino lo registrara
       var newUser = {
-      userId: req.body.userId,
-      nombre: req.body.name,
-      apellido: req.body.lastName,
-      email: req.body.email,
-      usernickname: req.body.nick,
-      avatar: "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
-      coverImage:"https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg"
-      
+        userId: req.body.userId,
+        nombre: req.body.name,
+        apellido: req.body.lastName,
+        email: req.body.email,
+        usernickname: req.body.nick,
+        avatar:
+          "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
+        coverImage:
+          "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg",
       };
       var createdUser = await UserService.createUser(newUser);
       var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
@@ -175,15 +180,11 @@ exports.googleLogin = async function (req, res, next) {
         token: token,
         message: "Usuario creado exitosamente",
       });
-
     }
-  
-  }catch(e){
-    throw({message:e.message})
+  } catch (e) {
+    throw { message: e.message };
   }
-  
-
-}
+};
 
 exports.loginUser = async function (req, res, next) {
   try {
@@ -290,12 +291,16 @@ exports.loginUser = async function (req, res, next) {
 
       // Retornar mensaje de confirmación
       return res.status(403).json({
-        message: "Debes confirmar tu cuenta antes de iniciar sesión. Hemos reenviado el correo de confirmación.",
+        message:
+          "Debes confirmar tu cuenta antes de iniciar sesión. Hemos reenviado el correo de confirmación.",
       });
     }
 
     // Verificar la contraseña
-    const passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
+    const passwordIsValid = bcrypt.compareSync(
+      req.body.password,
+      user.password
+    );
 
     // Si la contraseña es incorrecta
     if (!passwordIsValid) {
@@ -336,13 +341,43 @@ exports.notificaciones = async function (req, res) {
 
 exports.getUserData = async function (req, res) {
   try {
-    const userId = req.userId;
+    // Decodificar el token para obtener el userId
+    const token = req.headers["x-access-token"]; // Suponiendo que el token viene en los headers
+    if (!token) {
+      return res.status(400).json({ message: "Token no proporcionado" });
+    }
+
+    // Decodificar el token
+    const decoded = jwt.verify(token, process.env.SECRET);
+    const userId = decoded.id; // Extraemos el userId desde el token
+
+    // Llamamos al servicio para obtener el usuario con el ID
     const user = await UserService.getUserById(userId);
 
     if (!user) {
-      throw { message: "Usuario no encontrado" };
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // Contar los posts del usuario
+    const posts = await PostService.getPostsByUser(userId);
+    const postsCount = posts.length;
+
+    // Contar los comentarios del usuario en sus posts
+    const commentsCount = posts.reduce((count, post) => {
+      return count + post.comments.length;
+    }, 0);
+
+    // Calcular el nivel según los criterios
+    let level = 1; // Por defecto, nivel 1
+    if (postsCount >= 4 && commentsCount >= 4) {
+      level = 4;
+    } else if (postsCount >= 4) {
+      level = 3;
+    } else if (postsCount >= 2) {
+      level = 2;
+    }
+
+    // Ahora podemos retornar los datos del usuario con el nivel calculado
     return res.status(200).json({
       status: 200,
       data: {
@@ -353,12 +388,14 @@ exports.getUserData = async function (req, res) {
         bio: user.bio,
         avatar: user.avatar,
         coverImage: user.coverImage,
+        level: level, // Añadimos el nivel calculado
       },
     });
   } catch (error) {
+    console.error("Error en getUserData:", error);
     return res.status(500).json({
       status: 500,
-      message: e.message,
+      message: "Error al obtener los datos del usuario",
     });
   }
 };
@@ -663,13 +700,13 @@ exports.getFavoritePosts = async (req, res) => {
     return res.status(200).json({
       status: 200,
       data: favoritePosts,
-      message: 'Posts favoritos obtenidos exitosamente',
+      message: "Posts favoritos obtenidos exitosamente",
     });
   } catch (error) {
-    console.error('Error al obtener los posts favoritos:', error);
+    console.error("Error al obtener los posts favoritos:", error);
     return res.status(500).json({
       status: 500,
-      message: 'Error al obtener los posts favoritos',
+      message: "Error al obtener los posts favoritos",
     });
   }
 };

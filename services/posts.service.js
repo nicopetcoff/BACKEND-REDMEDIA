@@ -135,3 +135,28 @@ exports.getPostsFromFollowing = async function (userId) {
     throw new Error("Error al obtener los posts de los usuarios seguidos");
   }
 };
+
+exports.getUserPostsAndCommentsCount = async function (usernickname) {
+  try {
+    // Buscar los posts del usuario
+    const posts = await Post.find({ user: usernickname });
+
+    // Si no hay posts, devolvemos un conteo de 0
+    if (!posts || posts.length === 0) {
+      return { postCount: 0, commentCount: 0 };
+    }
+
+    let postCount = posts.length;
+    let commentCount = 0;
+
+    // Contamos los comentarios
+    posts.forEach(post => {
+      commentCount += post.comments.length;
+    });
+
+    return { postCount, commentCount };
+  } catch (error) {
+    console.error("Error al obtener los posts y comentarios del usuario:", error);
+    throw new Error("Error al obtener los posts y comentarios del usuario");
+  }
+};

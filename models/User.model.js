@@ -34,6 +34,7 @@ var UserSchema = new mongoose.Schema({
       },
     },
   ],
+  level: { type: Number},  // Este es el campo nuevo para el nivel
 });
 
 UserSchema.plugin(mongoosePaginate);
