@@ -134,10 +134,7 @@ const sendPasswordResetEmail = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-<<<<<<< HEAD
 // Controlador para restablecer la contraseña del usuario
-=======
->>>>>>> 1fa05bbfad0ad4cc7b923d97ec0dd1993590826a
 
 const resetPassword = async (req, res) => {
   const { resetToken, newPassword } = req.body;

@@ -1,5 +1,9 @@
 const PostsService = require("../services/posts.service");
-const { uploadToCloudinary } = require("../services/cloudinary");
+const { uploadImage, uploadVideo } = require("../services/cloudinary");
+const fs = require('fs').promises; // Usamos fs.promises para usar async/await correctamente
+const path = require('path'); // Para gestionar rutas de archivos
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); // Configura tu carpeta de destino
 const User = require("../models/User.model");
 
 exports.getAllPosts = async (req, res) => {
@@ -44,6 +48,7 @@ exports.getPostById = async (req, res) => {
 
 exports.crearPost = async (req, res) => {
   try {
+    // Verificar que se hayan recibido archivos
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         status: 400,
@@ -53,15 +58,17 @@ exports.crearPost = async (req, res) => {
 
     const imageUrls = [];
 
+    // Subir cada imagen a Cloudinary
     for (const file of req.files) {
       try {
         const result = await uploadToCloudinary(file.buffer);
         imageUrls.push(result.secure_url);
       } catch (uploadError) {
-        continue;
+        continue; // Si ocurre un error con un archivo, continuamos con el siguiente
       }
     }
 
+    // Si no se logró subir ninguna imagen
     if (imageUrls.length === 0) {
       return res.status(400).json({
         status: 400,
@@ -69,25 +76,29 @@ exports.crearPost = async (req, res) => {
       });
     }
 
+    // Datos del nuevo post
     const postData = {
       title: req.body.title,
-      description: req.body.description || "",
+      description: req.body.description || "", 
       location: req.body.location,
-      user: req.body.user,
+      user: req.body.user,  
       image: imageUrls,
-      sold: false,
-      likes: 0,
-      comments: [],
+      sold: false,  
+      likes: 0,     
+      comments: [], 
     };
 
+    // Crear el nuevo post utilizando el servicio
     const nuevoPost = await PostsService.crearPost(postData);
 
+    // Respuesta de éxito
     res.status(201).json({
       status: 201,
       data: nuevoPost,
       message: "Post creado exitosamente",
     });
   } catch (error) {
+    // En caso de error, responder con el mensaje de error
     res.status(400).json({
       status: 400,
       message: error.message || "Error al crear el post",
@@ -168,5 +179,59 @@ exports.getPostsFromFollowing = async (req, res) => {
       status: 400,
       message: error.message,
     });
+  }
+};
+
+exports.publishPost = async (req, res) => {
+  console.log("Datos recibidos en publishPost (texto):", req.body);
+  console.log("Datos recibidos en publishPost (archivos):", req.files);
+
+  try {
+    const imageUrls = [];
+    const videoUrls = [];
+
+    // Procesar las imágenes en req.files.images
+    if (req.files && req.files.images) {
+      console.log("Procesando imágenes...");
+      for (const image of req.files.images) {
+        const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
+        imageUrls.push(imageUrl);
+      }
+    } else {
+      console.log("No se encontraron imágenes.");
+    }
+
+    // Procesar los videos en req.files.videos
+    if (req.files && req.files.videos) {
+      console.log("Procesando videos...");
+      for (const video of req.files.videos) {
+        const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
+        videoUrls.push(videoUrl);
+      }
+    } else {
+      console.log("No se encontraron videos.");
+    }
+
+    // Recoger los datos del post
+    const postData = {
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      user: req.body.user,
+      userAvatar: req.body.userAvatar,
+      images: imageUrls,
+      videos: videoUrls,
+    };
+
+    console.log("postData antes de crear el post", postData);
+
+    // Guardar el post utilizando el servicio de Posts
+    const nuevoPost = await PostsService.crearPost(postData);
+
+    console.log("Post creado:", nuevoPost);
+    res.status(201).json(nuevoPost);
+  } catch (error) {
+    console.error("Error al publicar el post:", error);
+    res.status(500).json({ error: "Hubo un error al crear el post" });
   }
 };

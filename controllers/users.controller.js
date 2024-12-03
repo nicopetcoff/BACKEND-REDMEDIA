@@ -188,12 +188,15 @@ exports.googleLogin = async function (req, res, next) {
 
 exports.loginUser = async function (req, res, next) {
   try {
+    // Busca al usuario por su email
     const user = await UserService.getUserByEmail(req.body.email);
 
+    // Si el usuario no existe
     if (!user) {
       return res.status(404).json({ message: "El usuario no existe" });
     }
 
+    // Si el usuario no está confirmado
     if (!user.isConfirmed) {
       const confirmToken = jwt.sign({ id: user._id }, process.env.SECRET, {
         expiresIn: "24h",
@@ -283,38 +286,38 @@ exports.loginUser = async function (req, res, next) {
         </html>
       `;
 
+      // Enviar el correo de confirmación
       await mailSender(user.email, subject, html);
 
+      // Retornar mensaje de confirmación
       return res.status(403).json({
-        message:
-          "Debes confirmar tu cuenta antes de iniciar sesión. Hemos reenviado el correo de confirmación.",
+        message: "Debes confirmar tu cuenta antes de iniciar sesión. Hemos reenviado el correo de confirmación.",
       });
     }
 
-    const passwordIsValid = bcrypt.compareSync(
-      req.body.password,
-      user.password
-    );
+    // Verificar la contraseña
+    const passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
 
+    // Si la contraseña es incorrecta
     if (!passwordIsValid) {
       return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
+    // Generar el token de sesión
     const token = jwt.sign({ id: user._id }, process.env.SECRET);
 
+    // Retornar el token y mensaje de éxito
     return res.status(200).json({
       token: token,
       message: "Inicio de sesión exitoso",
     });
   } catch (error) {
     console.error("Error en loginUser:", error);
+    // Retornar error genérico si algo falla
     return res.status(500).json({
       status: 500,
       message: "Error al iniciar sesión",
     });
-  } catch (error) {
-    console.error("Error al verificar el token de Firebase:", error);
-    return res.status(500).json({ message: "Error durante el inicio de sesión", error: error.message });
   }
 };
 

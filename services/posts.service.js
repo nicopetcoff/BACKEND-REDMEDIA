@@ -23,12 +23,31 @@ exports.getPostById = async function (id) {
 };
 
 exports.crearPost = async function (post) {
-  const nuevoPost = new Post(post);
+  console.log("service", post);
+
+  // Crea una instancia de Post con los datos recibidos
+  const nuevoPost = new Post({
+    title: post.title,
+    description: post.description,
+    location: post.location,
+    user: post.user,
+    userAvatar: post.userAvatar,
+    image: post.images ||  [], // Si no hay imágenes, se guarda un array vacío
+    videos: post.videos || [], // Si no hay videos, se guarda un array vacío
+  });
+
+  console.log("post en service creado");
+
   try {
+    // Guardamos el nuevo post en MongoDB
     const savedPost = await nuevoPost.save();
-    return savedPost.toObject(); // Convertir a objeto plano
+    console.log("savedPost", savedPost);
+
+    // Retornamos el post guardado
+    return savedPost;
   } catch (error) {
-    throw Error("Error al crear el post en la base de datos");
+    console.error("Error al guardar el post en la base de datos:", error);
+    throw new Error("Error al crear el post en la base de datos");
   }
 };
 
