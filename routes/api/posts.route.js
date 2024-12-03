@@ -14,14 +14,10 @@ router.get("/", PostController.getAllPosts);
 
 router.get("/me", Authorization, PostController.getUserPosts);
 
-router.post(
-  "/crear",
-  Authorization,
-  upload.array("images", 10),
-  PostController.crearPost
-);
-
 router.post("/create", upload.fields([{ name: 'images' }, { name: 'videos' }]), PostController.publishPost);
+
+// routes/api/posts.routes.js
+router.post("/:id/favorite", Authorization, PostController.toggleFavoritePost);
 
 router.post("/:id/interactions", Authorization, PostController.handleInteractions);
 

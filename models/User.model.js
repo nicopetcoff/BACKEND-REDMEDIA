@@ -16,6 +16,7 @@ var UserSchema = new mongoose.Schema({
   usernickname: { type: String, required: true, unique: true },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  favoritePosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   resetToken: { type: String, default: "" },
   resetTokenExpires: { type: Date, default: null },
   avatar: { type: String, default: "" },
