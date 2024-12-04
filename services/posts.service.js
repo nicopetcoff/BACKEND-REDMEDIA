@@ -100,6 +100,43 @@ exports.addComment = async function (postId, username, comment) {
   }
 };
 
+exports.handleNotification = async function (userId, postOwner,postId,action,comment=null) {
+  try {
+    //crea la notificacion
+    console.log("ACA LLEGO EEH ")
+    let text="Like on your post";
+    if(action==="comment")
+    text=`Comment on your post: "${comment}"`;
+
+    const postOwnerId = await this.getUserByNickname(postOwner);
+    console.log("postOwnerId: ",postOwnerId, "text: ",text)
+    
+    const {usernickname}= await getUserById(userId);
+      const notification = {
+        type: action,
+        user: usernickname,
+        text: text,
+        time: Date.now(),
+        postId:postId
+      };
+      await User.findByIdAndUpdate(postOwnerId, {
+        $push: { notificaciones: notification },
+      }, { new: true });
+
+  } catch (error) {
+    throw new Error(`Error al ${action} al usuario: ` + error.message);
+  }
+};
+
+exports.getUserByNickname = async function (usernickname) {
+  try {
+    const user = await User.findOne({usernickname: usernickname });
+    return user._id;
+  }catch (error) {
+    throw new Error("Error al obtener el usuario desde la base de datos");
+  }
+}
+
 exports.getPostsFromFollowing = async function (userId) {
   try {
     // Obtener el usuario actual y sus following
