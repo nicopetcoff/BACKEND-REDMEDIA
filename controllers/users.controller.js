@@ -1,7 +1,9 @@
 var UserService = require("../services/user.service");
+var PostService = require("../services/posts.service");
 var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
 const { uploadImage } = require("../services/cloudinary");
+const { mailSender } = require("../services/nodemailer");
 
 _this = this;
 
@@ -11,6 +13,7 @@ exports.registerUser = async function (req, res, next) {
       req.body.email
     );
     const nickExists = await UserService.verificarNickExistente(req.body.nick);
+
     if (emailExists) {
       throw { message: "El email ya está registrado" };
     }
@@ -20,24 +23,116 @@ exports.registerUser = async function (req, res, next) {
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 8);
 
-    var newUser = {
+    const newUser = {
       nombre: req.body.name,
       apellido: req.body.lastName,
       email: req.body.email,
       password: hashedPassword,
+      genero: req.body.genero || "Not specified",
       usernickname: req.body.nick,
       avatar:
         "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
       coverImage:
         "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg",
+      isConfirmed: false, // Nuevo campo para confirmar el usuario
     };
 
-    var createdUser = await UserService.createUser(newUser);
-    var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
+    const createdUser = await UserService.createUser(newUser);
+
+    const confirmToken = jwt.sign({ id: createdUser._id }, process.env.SECRET, {
+      expiresIn: "24h",
+    });
+
+    const confirmLink = `https://redmedia.vercel.app/confirm-user/${confirmToken}`;
+
+    const subject = "Confirma tu cuenta - RedMedia";
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Confirma tu Cuenta</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            background-color: #007BFF;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .content {
+            padding: 20px;
+            line-height: 1.6;
+            color: #333333;
+          }
+          .content p {
+            margin: 10px 0;
+          }
+          .btn {
+            display: inline-block;
+            background-color: #007BFF;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+          }
+          .btn:hover {
+            background-color: #0056b3;
+          }
+          .footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #777777;
+            background-color: #f4f4f4;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Confirma tu Cuenta</h1>
+          </div>
+          <div class="content">
+            <p>Hola <strong>${createdUser.nombre}</strong>,</p>
+            <p>Gracias por registrarte en <strong>Red Media</strong>. Por favor, confirma tu cuenta haciendo clic en el botón de abajo:</p>
+            <a href="${confirmLink}" class="btn">Confirmar Cuenta</a>
+            <p>Si no solicitaste esta cuenta, puedes ignorar este correo.</p>
+            <p>Este enlace expirará en 24 horas.</p>
+          </div>
+          <div class="footer">
+            <p>Este correo fue enviado desde Red Media App.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await mailSender(createdUser.email, subject, html);
 
     res.status(201).json({
-      token: token,
-      message: "Usuario creado exitosamente",
+      message:
+        "Usuario creado exitosamente. Revisa tu correo para confirmar tu cuenta.",
     });
   } catch (e) {
     res.status(400).json({
@@ -47,32 +142,37 @@ exports.registerUser = async function (req, res, next) {
   }
 };
 exports.googleLogin = async function (req, res, next) {
-  try{
-    const emailExists = await UserService.verificarEmailExistente(req.body.email);
+  try {
+    const emailExists = await UserService.verificarEmailExistente(
+      req.body.email
+    );
     //si el email ya existe, verifica si el id coincide para iniciar sesion
     if (emailExists) {
-      const userData={email:req.body.email, userId:req.body.userId}
+      const userData = { email: req.body.email, userId: req.body.userId };
       const idCoincide = await UserService.verificarIdExistente(userData);
-      if(!idCoincide){
-        throw({message: "Error al iniciar sesion"})
+      if (!idCoincide) {
+        throw { message: "Error al iniciar sesion" };
       }
       var user = await UserService.getUserByEmail(req.body.email);
       var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
 
-    return res.status(200).json({
-      token: token,
-      message: "Inicio de sesión exitoso",
-    });
-    }else{ //sino lo registrara
+      // Enviar respuesta al frontend
+      return res.status(200).json({
+        token: token,
+        message: "Inicio de sesión exitoso",
+      });
+    } else {
+      //sino lo registrara
       var newUser = {
-      userId: req.body.userId,
-      nombre: req.body.name,
-      apellido: req.body.lastName,
-      email: req.body.email,
-      usernickname: req.body.nick,
-      avatar: "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
-      coverImage:"https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg"
-      
+        userId: req.body.userId,
+        nombre: req.body.name,
+        apellido: req.body.lastName,
+        email: req.body.email,
+        usernickname: req.body.nick,
+        avatar:
+          "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
+        coverImage:
+          "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg",
       };
       var createdUser = await UserService.createUser(newUser);
       var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
@@ -80,41 +180,147 @@ exports.googleLogin = async function (req, res, next) {
         token: token,
         message: "Usuario creado exitosamente",
       });
-
     }
-  
-  }catch(e){
-    console.log("ERRRORRRR ", e)
-    throw({message:e.message})
+  } catch (e) {
+    throw { message: e.message };
   }
-  
-
-}
+};
 
 exports.loginUser = async function (req, res, next) {
   try {
-    var user = await UserService.getUserByEmail(req.body.email);
+    // Busca al usuario por su email
+    const user = await UserService.getUserByEmail(req.body.email);
 
+    // Si el usuario no existe
     if (!user) {
-      throw { message: "El usuario no existe" };
+      return res.status(404).json({ message: "El usuario no existe" });
     }
 
-    var passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
+    // Si el usuario no está confirmado
+    if (!user.isConfirmed) {
+      const confirmToken = jwt.sign({ id: user._id }, process.env.SECRET, {
+        expiresIn: "24h",
+      });
 
+      const confirmLink = `https://redmedia.vercel.app/confirm-user/${confirmToken}`;
+      const subject = "Confirma tu cuenta - RedMedia";
+      const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Confirma tu Cuenta</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              background-color: #f4f4f4;
+              margin: 0;
+              padding: 0;
+            }
+            .container {
+              max-width: 600px;
+              margin: 20px auto;
+              background: #ffffff;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .header {
+              background-color: #007BFF;
+              color: #ffffff;
+              text-align: center;
+              padding: 20px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+            }
+            .content {
+              padding: 20px;
+              line-height: 1.6;
+              color: #333333;
+            }
+            .content p {
+              margin: 10px 0;
+            }
+            .btn {
+              display: inline-block;
+              background-color: #007BFF;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 10px 20px;
+              border-radius: 5px;
+              margin-top: 20px;
+              font-size: 16px;
+            }
+            .btn:hover {
+              background-color: #0056b3;
+            }
+            .footer {
+              text-align: center;
+              padding: 10px;
+              font-size: 12px;
+              color: #777777;
+              background-color: #f4f4f4;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Confirma tu Cuenta</h1>
+            </div>
+            <div class="content">
+              <p>Hola <strong>${user.nombre}</strong>,</p>
+              <p>Por favor, confirma tu cuenta haciendo clic en el botón de abajo:</p>
+              <a href="${confirmLink}" class="btn">Confirmar Cuenta</a>
+              <p>Si no solicitaste esta cuenta, puedes ignorar este correo.</p>
+              <p>Este enlace expirará en 24 horas.</p>
+            </div>
+            <div class="footer">
+              <p>Este correo fue enviado desde Red Media App.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Enviar el correo de confirmación
+      await mailSender(user.email, subject, html);
+
+      // Retornar mensaje de confirmación
+      return res.status(403).json({
+        message:
+          "Debes confirmar tu cuenta antes de iniciar sesión. Hemos reenviado el correo de confirmación.",
+      });
+    }
+
+    // Verificar la contraseña
+    const passwordIsValid = bcrypt.compareSync(
+      req.body.password,
+      user.password
+    );
+
+    // Si la contraseña es incorrecta
     if (!passwordIsValid) {
-      throw { message: "Contraseña incorrecta" };
+      return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
-    var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
+    // Generar el token de sesión
+    const token = jwt.sign({ id: user._id }, process.env.SECRET);
 
+    // Retornar el token y mensaje de éxito
     return res.status(200).json({
       token: token,
       message: "Inicio de sesión exitoso",
     });
-  } catch (e) {
+  } catch (error) {
+    console.error("Error en loginUser:", error);
+    // Retornar error genérico si algo falla
     return res.status(500).json({
       status: 500,
-      message: e.message,
+      message: "Error al iniciar sesión",
     });
   }
 };
@@ -135,13 +341,43 @@ exports.notificaciones = async function (req, res) {
 
 exports.getUserData = async function (req, res) {
   try {
-    const userId = req.userId;
+    // Decodificar el token para obtener el userId
+    const token = req.headers["x-access-token"]; // Suponiendo que el token viene en los headers
+    if (!token) {
+      return res.status(400).json({ message: "Token no proporcionado" });
+    }
+
+    // Decodificar el token
+    const decoded = jwt.verify(token, process.env.SECRET);
+    const userId = decoded.id; // Extraemos el userId desde el token
+
+    // Llamamos al servicio para obtener el usuario con el ID
     const user = await UserService.getUserById(userId);
 
     if (!user) {
-      throw { message: "Usuario no encontrado" };
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // Contar los posts del usuario
+    const posts = await PostService.getPostsByUser(userId);
+    const postsCount = posts.length;
+
+    // Contar los comentarios del usuario en sus posts
+    const commentsCount = posts.reduce((count, post) => {
+      return count + post.comments.length;
+    }, 0);
+
+    // Calcular el nivel según los criterios
+    let level = 1; // Por defecto, nivel 1
+    if (postsCount >= 4 && commentsCount >= 4) {
+      level = 4;
+    } else if (postsCount >= 4) {
+      level = 3;
+    } else if (postsCount >= 2) {
+      level = 2;
+    }
+
+    // Ahora podemos retornar los datos del usuario con el nivel calculado
     return res.status(200).json({
       status: 200,
       data: {
@@ -152,12 +388,14 @@ exports.getUserData = async function (req, res) {
         bio: user.bio,
         avatar: user.avatar,
         coverImage: user.coverImage,
+        level: level, // Añadimos el nivel calculado
       },
     });
   } catch (error) {
+    console.error("Error en getUserData:", error);
     return res.status(500).json({
       status: 500,
-      message: e.message,
+      message: "Error al obtener los datos del usuario",
     });
   }
 };
@@ -319,5 +557,156 @@ exports.searchUsers = async (req, res) => {
     });
   }
 };
+exports.confirmUser = async function (req, res) {
+  const { token } = req.params;
 
-console.log("Users controller loaded");
+  try {
+    const decoded = jwt.verify(token, process.env.SECRET); // Decodificar el token
+    const userId = decoded.id;
+
+    const user = await UserService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    if (user.isConfirmed) {
+      return res.status(400).json({ message: "El usuario ya está confirmado" });
+    }
+
+    await UserService.confirmUser(userId); // Llamar al service para confirmar el usuario
+
+    res.status(200).json({ message: "Usuario confirmado exitosamente" });
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "El token ha expirado" });
+    } else {
+      return res.status(500).json({ message: "Error al confirmar el usuario" });
+    }
+  }
+};
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.userId; // Obtener el ID del usuario desde el token
+
+    // Verificar si el usuario existe
+    const user = await UserService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Eliminar el usuario
+    await UserService.deleteUser(userId);
+
+    // Enviar correo de confirmación de eliminación
+    const subject = "Tu cuenta ha sido eliminada - RedMedia";
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cuenta Eliminada</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            background-color: #007BFF;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .content {
+            padding: 20px;
+            line-height: 1.6;
+            color: #333333;
+          }
+          .content p {
+            margin: 10px 0;
+          }
+          .btn {
+            display: inline-block;
+            background-color: #007BFF;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+          }
+          .btn:hover {
+            background-color: #0056b3;
+          }
+          .footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #777777;
+            background-color: #f4f4f4;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Cuenta Eliminada</h1>
+          </div>
+          <div class="content">
+            <p>Hola <strong>${user.nombre}</strong>,</p>
+            <p>Lamentamos verte partir. Tu cuenta ha sido eliminada de <strong>RedMedia</strong>. Si esto fue un error, por favor contáctanos de inmediato.</p>
+            <p>Gracias por haber sido parte de nuestra comunidad.</p>
+          </div>
+          <div class="footer">
+            <p>Este correo fue enviado desde Red Media App.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await mailSender(user.email, subject, html);
+
+    return res.status(200).json({ message: "Cuenta eliminada exitosamente" });
+  } catch (error) {
+    console.error("Error en deleteAccount:", error);
+    return res.status(500).json({ message: "Error al eliminar la cuenta" });
+  }
+};
+
+// Ruta para obtener los posts favoritos de un usuario
+exports.getFavoritePosts = async (req, res) => {
+  const userId = req.userId; // ID del usuario desde el token
+
+  try {
+    // Llamamos al servicio para obtener los posts favoritos
+    const favoritePosts = await UserService.getFavoritePosts(userId);
+
+    // Retornamos los posts favoritos
+    return res.status(200).json({
+      status: 200,
+      data: favoritePosts,
+      message: "Posts favoritos obtenidos exitosamente",
+    });
+  } catch (error) {
+    console.error("Error al obtener los posts favoritos:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Error al obtener los posts favoritos",
+    });
+  }
+};

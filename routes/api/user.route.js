@@ -18,11 +18,16 @@ router.post("/google", UserController.googleLogin);
 // Nueva ruta de registro
 router.post("/register", UserController.registerUser);
 
+router.get("/confirm-user/:token", UserController.confirmUser);
+
 // Ruta para obtener las notificaciones
 router.get("/notificaciones",UserController.notificaciones)
 
 
 router.get("/me", Authorization, UserController.getUserData);
+
+// Ruta para eliminar una cuenta
+router.delete("/me", Authorization, UserController.deleteAccount);
 
 router.patch("/me", 
     Authorization, 
@@ -38,5 +43,8 @@ router.patch("/:id/follow", Authorization, UserController.handleFollow);
 
 // Ruta para buscar usuarios
 router.get("/search", Authorization, UserController.searchUsers);
+
+// Ruta para obtener los posts favoritos de un usuario
+router.get("/favorites", Authorization, UserController.getFavoritePosts);
 
 module.exports = router;

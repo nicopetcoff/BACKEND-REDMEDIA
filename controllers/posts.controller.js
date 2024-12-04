@@ -1,5 +1,9 @@
 const PostsService = require("../services/posts.service");
-const { uploadToCloudinary } = require("../services/cloudinary");
+const { uploadImage, uploadVideo } = require("../services/cloudinary");
+const fs = require("fs").promises; // Usamos fs.promises para usar async/await correctamente
+const path = require("path"); // Para gestionar rutas de archivos
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" }); // Configura tu carpeta de destino
 const User = require("../models/User.model");
 
 exports.getAllPosts = async (req, res) => {
@@ -15,6 +19,34 @@ exports.getAllPosts = async (req, res) => {
     res.status(400).json({
       status: 400,
       message: error.message || "Error al obtener los posts",
+    });
+  }
+};
+
+exports.getUserPosts = async (req, res) => {
+  try {
+    const userId = req.userId; // Obtenido del middleware Authorization
+
+    if (!userId) {
+      return res.status(401).json({
+        status: 401,
+        message: "Usuario no autenticado",
+      });
+    }
+
+    const posts = await PostsService.getPostsByUser(userId);
+
+    // Si no hay posts, devuelve un array vacío
+    res.status(200).json({
+      status: 200,
+      data: posts || [], // Devuelve un array vacío si no hay resultados
+      message: "Posts del usuario obtenidos exitosamente",
+    });
+  } catch (error) {
+    console.error("Error en getUserPosts:", error);
+    res.status(500).json({
+      status: 500,
+      message: "Error al obtener los posts del usuario",
     });
   }
 };
@@ -44,6 +76,7 @@ exports.getPostById = async (req, res) => {
 
 exports.crearPost = async (req, res) => {
   try {
+    // Verificar que se hayan recibido archivos
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         status: 400,
@@ -53,15 +86,17 @@ exports.crearPost = async (req, res) => {
 
     const imageUrls = [];
 
+    // Subir cada imagen a Cloudinary
     for (const file of req.files) {
       try {
         const result = await uploadToCloudinary(file.buffer);
         imageUrls.push(result.secure_url);
       } catch (uploadError) {
-        continue;
+        continue; // Si ocurre un error con un archivo, continuamos con el siguiente
       }
     }
 
+    // Si no se logró subir ninguna imagen
     if (imageUrls.length === 0) {
       return res.status(400).json({
         status: 400,
@@ -69,6 +104,7 @@ exports.crearPost = async (req, res) => {
       });
     }
 
+    // Datos del nuevo post
     const postData = {
       title: req.body.title,
       description: req.body.description || "",
@@ -80,14 +116,17 @@ exports.crearPost = async (req, res) => {
       comments: [],
     };
 
+    // Crear el nuevo post utilizando el servicio
     const nuevoPost = await PostsService.crearPost(postData);
 
+    // Respuesta de éxito
     res.status(201).json({
       status: 201,
       data: nuevoPost,
       message: "Post creado exitosamente",
     });
   } catch (error) {
+    // En caso de error, responder con el mensaje de error
     res.status(400).json({
       status: 400,
       message: error.message || "Error al crear el post",
@@ -175,5 +214,88 @@ exports.getPostsFromFollowing = async (req, res) => {
       status: 400,
       message: error.message,
     });
+  }
+};
+
+exports.publishPost = async (req, res) => {
+  try {
+    const imageUrls = [];
+    const videoUrls = [];
+
+    // Procesar las imágenes en req.files.images
+    if (req.files && req.files.images) {
+      for (const image of req.files.images) {
+        const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
+        imageUrls.push(imageUrl);
+      }
+    } else {
+    }
+
+    // Procesar los videos en req.files.videos
+    if (req.files && req.files.videos) {
+      for (const video of req.files.videos) {
+        const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
+        videoUrls.push(videoUrl);
+      }
+    } else {
+    }
+
+    // Recoger los datos del post
+    const postData = {
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      user: req.body.user,
+      userAvatar: req.body.userAvatar,
+      images: imageUrls,
+      videos: videoUrls,
+    };
+
+    // Guardar el post utilizando el servicio de Posts
+    const nuevoPost = await PostsService.crearPost(postData);
+
+    res.status(201).json(nuevoPost);
+  } catch (error) {
+    console.error("Error al publicar el post:", error);
+    res.status(500).json({ error: "Hubo un error al crear el post" });
+  }
+};
+
+// controllers/posts.controller.js
+
+exports.toggleFavoritePost = async (req, res) => {
+  try {
+    const postId = req.params.id; // El ID del post que el usuario quiere marcar como favorito
+    const userId = req.userId; // El ID del usuario que está autenticado
+
+    // Verificar si el post existe
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post no encontrado" });
+    }
+
+    // Obtener al usuario
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Verificar si el post ya es favorito
+    const isFavorite = user.favoritePosts.includes(postId);
+
+    if (isFavorite) {
+      // Si el post ya es favorito, lo eliminamos de la lista de favoritos
+      user.favoritePosts = user.favoritePosts.filter((id) => id.toString() !== postId.toString());
+      await user.save();
+      return res.status(200).json({ message: "Post eliminado de favoritos" });
+    } else {
+      // Si el post no es favorito, lo agregamos a la lista de favoritos
+      user.favoritePosts.push(postId);
+      await user.save();
+      return res.status(200).json({ message: "Post agregado a favoritos" });
+    }
+  } catch (error) {
+    console.error("Error al manejar el favorito:", error);
+    res.status(500).json({ message: "Error al manejar el favorito del post" });
   }
 };

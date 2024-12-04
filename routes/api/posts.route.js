@@ -7,20 +7,17 @@ const Authorization = require("../../auth/authorization");
 const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB límite por archivo
-  },
+  storage: storage
 });
 
 router.get("/", PostController.getAllPosts);
 
-router.post(
-  "/crear",
-  Authorization,
-  upload.array("images", 10),
-  PostController.crearPost
-);
+router.get("/me", Authorization, PostController.getUserPosts);
+
+router.post("/create", upload.fields([{ name: 'images' }, { name: 'videos' }]), PostController.publishPost);
+
+// routes/api/posts.routes.js
+router.post("/:id/favorite", Authorization, PostController.toggleFavoritePost);
 
 router.post("/:id/interactions", Authorization, PostController.handleInteractions);
 

@@ -13,6 +13,25 @@ exports.getAllPosts = async function () {
   }
 };
 
+exports.getPostsByUser = async function (userId) {
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    const posts = await Post.find({ user: user.usernickname })
+      .sort({ createdAt: -1 }) // Orden descendente por fecha
+      .lean();
+
+    return posts;
+  } catch (error) {
+    console.error("Error en getPostsByUser:", error);
+    throw new Error("Error al obtener los posts del usuario");
+  }
+};
+
 exports.getPostById = async function (id) {
   try {
     const post = await Post.findById(id).lean();
@@ -23,12 +42,26 @@ exports.getPostById = async function (id) {
 };
 
 exports.crearPost = async function (post) {
-  const nuevoPost = new Post(post);
+  // Crea una instancia de Post con los datos recibidos
+  const nuevoPost = new Post({
+    title: post.title,
+    description: post.description,
+    location: post.location,
+    user: post.user,
+    userAvatar: post.userAvatar,
+    image: post.images || [], // Si no hay imágenes, se guarda un array vacío
+    videos: post.videos || [], // Si no hay videos, se guarda un array vacío
+  });
+
   try {
+    // Guardamos el nuevo post en MongoDB
     const savedPost = await nuevoPost.save();
-    return savedPost.toObject(); // Convertir a objeto plano
+
+    // Retornamos el post guardado
+    return savedPost;
   } catch (error) {
-    throw Error("Error al crear el post en la base de datos");
+    console.error("Error al guardar el post en la base de datos:", error);
+    throw new Error("Error al crear el post en la base de datos");
   }
 };
 
@@ -113,26 +146,54 @@ exports.getPostsFromFollowing = async function (userId) {
     }
 
     // Obtener los documentos de usuarios seguidos
-    const followedUsers = await User.find({
-      '_id': { $in: currentUser.following }
-    }, 'usernickname');
+    const followedUsers = await User.find(
+      {
+        _id: { $in: currentUser.following },
+      },
+      "usernickname"
+    );
 
     // Obtener todos los usernicknames (incluido el del usuario actual)
     const usernames = [
       currentUser.usernickname,
-      ...followedUsers.map(user => user.usernickname)
+      ...followedUsers.map((user) => user.usernickname),
     ];
 
     // Buscar posts tanto del usuario como de los que sigue
     const posts = await Post.find({
-      'user': { $in: usernames }
+      user: { $in: usernames },
     })
-    .sort({ createdAt: -1 })
-    .lean();
+      .sort({ createdAt: -1 })
+      .lean();
 
     return posts;
   } catch (error) {
     console.error("Error en getPostsFromFollowing:", error);
     throw new Error("Error al obtener los posts de los usuarios seguidos");
+  }
+};
+
+exports.getUserPostsAndCommentsCount = async function (usernickname) {
+  try {
+    // Buscar los posts del usuario
+    const posts = await Post.find({ user: usernickname });
+
+    // Si no hay posts, devolvemos un conteo de 0
+    if (!posts || posts.length === 0) {
+      return { postCount: 0, commentCount: 0 };
+    }
+
+    let postCount = posts.length;
+    let commentCount = 0;
+
+    // Contamos los comentarios
+    posts.forEach(post => {
+      commentCount += post.comments.length;
+    });
+
+    return { postCount, commentCount };
+  } catch (error) {
+    console.error("Error al obtener los posts y comentarios del usuario:", error);
+    throw new Error("Error al obtener los posts y comentarios del usuario");
   }
 };
