@@ -54,6 +54,7 @@ exports.getUserPosts = async (req, res) => {
 
 exports.getPostById = async (req, res) => {
   try {
+    console.log("BACKK",req.params.id)
     const post = await PostsService.getPostById(req.params.id);
 
     if (!post) {
@@ -150,9 +151,7 @@ exports.handleInteractions = async (req, res) => {
 
     if (action === "like") {
       // Incrementar o decrementar el contador de likes
-      updatedPost = await PostsService.toggleLike(postId, username);
-      // Enviar notificación (si se incluye en la lógica)
-      await PostsService.handleNotification(userId, username, postId, action);
+      updatedPost = await PostsService.toggleLike(postId, username);      
 
       return res.status(200).json({
         status: 200,
@@ -162,9 +161,8 @@ exports.handleInteractions = async (req, res) => {
     } else if (action === "comment") {
       // Agregar comentario al post con el username
       updatedPost = await PostsService.addComment(postId, username, comment);
-
       // Enviar notificación (si se incluye en la lógica)
-      await PostsService.handleNotification(userId, username, postId, action, comment);
+      await PostsService.handleNotification( username, postId, action, comment);
 
       return res.status(200).json({
         status: 200,

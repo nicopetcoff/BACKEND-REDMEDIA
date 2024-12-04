@@ -76,6 +76,7 @@ exports.toggleLike = async function (postId, username) {
     } else {
       // Si no le dio like, lo agrega
       post.likes.push(username);
+      await this.handleNotification( username, postId, "Trending");
     }
 
     const updatedPost = await post.save();
@@ -100,29 +101,28 @@ exports.addComment = async function (postId, username, comment) {
   }
 };
 
-exports.handleNotification = async function (userId, postOwner,postId,action,comment=null) {
+exports.handleNotification = async function ( username,postId,action,comment=null) {
   try {
     //crea la notificacion
-    console.log("ACA LLEGO EEH ")
     let text="Like on your post";
     if(action==="comment")
-    text=`Comment on your post: "${comment}"`;
+      text=`Comment on your post: "${comment}"`;
 
-    const postOwnerId = await this.getUserByNickname(postOwner);
-    console.log("postOwnerId: ",postOwnerId, "text: ",text)
-    
-    const {usernickname}= await getUserById(userId);
+
       const notification = {
         type: action,
-        user: usernickname,
+        user: username,
         text: text,
         time: Date.now(),
-        postId:postId
+        post:postId
       };
-      await User.findByIdAndUpdate(postOwnerId, {
+      const postOwnerNick=await this.getPostOwner(postId); 
+      const postOwnerId=await this.getUserByNickname(postOwnerNick);
+      
+      const doned=await User.findByIdAndUpdate(postOwnerId, {
         $push: { notificaciones: notification },
       }, { new: true });
-
+      
   } catch (error) {
     throw new Error(`Error al ${action} al usuario: ` + error.message);
   }
@@ -136,6 +136,17 @@ exports.getUserByNickname = async function (usernickname) {
     throw new Error("Error al obtener el usuario desde la base de datos");
   }
 }
+
+exports.getPostOwner = async function (postId) {
+  try {
+    const post = await Post.findById(postId);
+    if (!post) throw new Error("Post no encontrado");
+    return post.user
+  }catch (error) {
+    throw new Error("Error al obtener el dueño del post: " + error.message);
+  }
+}
+
 
 exports.getPostsFromFollowing = async function (userId) {
   try {
