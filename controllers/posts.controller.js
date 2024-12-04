@@ -75,79 +75,7 @@ exports.getPostById = async (req, res) => {
   }
 };
 
-exports.handleInteractions = async (req, res) => {
-  try {
-    const postId = req.params.id; // ID del post desde los parámetros
-    const { action, comment } = req.body; // Acción y comentario desde el cuerpo
-    const userId = req.userId; // ID del usuario autenticado (desde el token)
-
-    // Buscar el usernickname del usuario autenticado
-    const user = await User.findById(userId);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "Usuario autenticado no encontrado" });
-    }
-    const username = user.usernickname; // Obtener el usernickname
-
-    // Validar si el post existe
-    const post = await PostsService.getPostById(postId);
-    if (!post) {
-      return res
-        .status(404)
-        .json({ status: 404, message: "Post no encontrado" });
-    }
-
-    let updatedPost;
-
-    if (action === "like") {
-      // Incrementar o decrementar el contador de likes
-      updatedPost = await PostsService.toggleLike(postId, username);
-    } else if (action === "comment") {
-      // Agregar comentario al post con el username
-      updatedPost = await PostsService.addComment(postId, username, comment);
-    } else {
-      return res.status(400).json({
-        status: 400,
-        message: "Acción inválida. Usa 'like' o 'comment'.",
-      });
-    }
-
-    // Después de la interacción, calcular el nivel del usuario (sin bloquear la respuesta)
-    await UserService.calculateUserLevel(username); // Llamamos al cálculo del nivel del usuario
-
-    return res.status(200).json({
-      status: 200,
-      data: updatedPost,
-      message: "Interacción procesada correctamente",
-    });
-  } catch (error) {
-    console.error("Error en handleInteractions:", error);
-    return res.status(500).json({
-      status: 500,
-      message: "Error al procesar la interacción.",
-    });
-  }
-};
-
-exports.getPostsFromFollowing = async (req, res) => {
-  try {
-    const posts = await PostsService.getPostsFromFollowing(req.userId);
-
-    res.status(200).json({
-      status: 200,
-      data: posts,
-      message: "Posts obtenidos exitosamente",
-    });
-  } catch (error) {
-    console.error("6. Error en controlador:", error);
-    res.status(400).json({
-      status: 400,
-      message: error.message,
-    });
-  }
-};
-
+// Método consolidado para publicar un post
 exports.publishPost = async (req, res) => {
   try {
     const imageUrls = [];
@@ -184,7 +112,7 @@ exports.publishPost = async (req, res) => {
     const nuevoPost = await PostsService.crearPost(postData);
 
     // Después de crear el post, calcular el nivel del usuario que lo publicó
-    const userNickname = req.body.user; // Suponemos que en `req.body.user` está el usernickname del autor
+    const userNickname = req.body.user;  // Suponemos que en `req.body.user` está el usernickname del autor
     await UserService.calculateUserLevel(userNickname); // Llamamos a la función que calcula el nivel
 
     res.status(201).json(nuevoPost);
@@ -194,8 +122,98 @@ exports.publishPost = async (req, res) => {
   }
 };
 
-// controllers/posts.controller.js
+// Manejo de interacciones (likes y comentarios)
+exports.handleInteractions = async (req, res) => {
+  try {
+    const postId = req.params.id; // ID del post desde los parámetros
+    const { action, comment } = req.body; // Acción y comentario desde el cuerpo
+    const userId = req.userId; // ID del usuario autenticado (desde el token)
 
+    // Buscar el usernickname del usuario autenticado
+    const user = await User.findById(userId);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "Usuario autenticado no encontrado" });
+    }
+    const username = user.usernickname; // Obtener el usernickname
+
+    // Validar si el post existe
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ status: 404, message: "Post no encontrado" });
+    }
+
+    let updatedPost;
+
+    if (action === "like") {
+      // Incrementar o decrementar el contador de likes
+      updatedPost = await PostsService.toggleLike(postId, username);
+      // Enviar notificación (si se incluye en la lógica)
+      await PostsService.handleNotification(userId, username, postId, action);
+
+      return res.status(200).json({
+        status: 200,
+        data: updatedPost,
+        message: "Interacción de 'me gusta' procesada",
+      });
+    } else if (action === "comment") {
+      // Agregar comentario al post con el username
+      updatedPost = await PostsService.addComment(postId, username, comment);
+
+      // Enviar notificación (si se incluye en la lógica)
+      await PostsService.handleNotification(userId, username, postId, action, comment);
+
+      return res.status(200).json({
+        status: 200,
+        data: updatedPost,
+        message: "Comentario agregado",
+      });
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: "Acción inválida. Usa 'like' o 'comment'.",
+      });
+    }
+
+    // Después de la interacción, calcular el nivel del usuario (sin bloquear la respuesta)
+    await UserService.calculateUserLevel(username); // Llamamos al cálculo del nivel del usuario
+
+    return res.status(200).json({
+      status: 200,
+      data: updatedPost,
+      message: "Interacción procesada correctamente",
+    });
+  } catch (error) {
+    console.error("Error en handleInteractions:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Error al procesar la interacción.",
+    });
+  }
+};
+
+exports.getPostsFromFollowing = async (req, res) => {
+  try {
+    const posts = await PostsService.getPostsFromFollowing(req.userId);
+
+    res.status(200).json({
+      status: 200,
+      data: posts,
+      message: "Posts obtenidos exitosamente",
+    });
+  } catch (error) {
+    console.error("Error en controlador:", error);
+    res.status(400).json({
+      status: 400,
+      message: error.message,
+    });
+  }
+};
+
+// Método para agregar a favoritos
 exports.toggleFavoritePost = async (req, res) => {
   try {
     const postId = req.params.id; // El ID del post que el usuario quiere marcar como favorito

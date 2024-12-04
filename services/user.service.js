@@ -146,6 +146,20 @@ exports.addFollow = async (userId, targetUserId) => {
       { $addToSet: { followers: userId } },
       { new: true }
     );
+    //crea la notificacion
+    const {usernickname}= await this.getUserById(userId);
+    const notification = {
+      type: "Followed",
+      user: usernickname,
+      text: "started following you",
+      time: Date.now(),
+    };
+
+    //agrega la notificacion
+    
+    await User.findByIdAndUpdate(targetUserId, {
+      $push: { notificaciones: notification },
+    }, { new: true });
 
     return user;
   } catch (error) {
