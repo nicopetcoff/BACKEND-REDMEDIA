@@ -30,11 +30,12 @@ exports.registerUser = async function (req, res, next) {
       password: hashedPassword,
       genero: req.body.genero || "Not specified",
       usernickname: req.body.nick,
+      level: 1,
       avatar:
         "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/zduipyxpgoae9zg9rg8x.jpg",
       coverImage:
         "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg",
-      isConfirmed: false, // Nuevo campo para confirmar el usuario
+      isConfirmed: false,
     };
 
     const createdUser = await UserService.createUser(newUser);
@@ -358,26 +359,7 @@ exports.getUserData = async function (req, res) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    // Contar los posts del usuario
-    const posts = await PostService.getPostsByUser(userId);
-    const postsCount = posts.length;
-
-    // Contar los comentarios del usuario en sus posts
-    const commentsCount = posts.reduce((count, post) => {
-      return count + post.comments.length;
-    }, 0);
-
-    // Calcular el nivel según los criterios
-    let level = 1; // Por defecto, nivel 1
-    if (postsCount >= 4 && commentsCount >= 4) {
-      level = 4;
-    } else if (postsCount >= 4) {
-      level = 3;
-    } else if (postsCount >= 2) {
-      level = 2;
-    }
-
-    // Ahora podemos retornar los datos del usuario con el nivel calculado
+    // Retornar los datos del usuario sin recalcular el nivel aquí
     return res.status(200).json({
       status: 200,
       data: {
@@ -388,7 +370,7 @@ exports.getUserData = async function (req, res) {
         bio: user.bio,
         avatar: user.avatar,
         coverImage: user.coverImage,
-        level: level, // Añadimos el nivel calculado
+        level: user.level, // Devolvemos el nivel calculado previamente
       },
     });
   } catch (error) {
@@ -400,8 +382,11 @@ exports.getUserData = async function (req, res) {
   }
 };
 
+// Modificar el controller de UserController
+
 exports.getUsers = async (req, res) => {
   try {
+    // Solo obtenemos los usuarios, no recalculamos el nivel aquí
     const users = await UserService.getUsers();
 
     return res.status(200).json({
@@ -537,17 +522,11 @@ exports.searchUsers = async (req, res) => {
     // Delegar la búsqueda al servicio
     const users = await UserService.searchUsers(query);
 
-    if (users.length === 0) {
-      return res.status(404).json({
-        status: 404,
-        message: "No se encontraron usuarios",
-      });
-    }
-
+    // Si no se encuentran usuarios, devolvemos una lista vacía
     return res.status(200).json({
       status: 200,
-      data: users,
-      message: "Usuarios encontrados exitosamente",
+      data: users, // Aunque la lista esté vacía, la respuesta será exitosa con una lista vacía
+      message: users.length ? "Usuarios encontrados exitosamente" : "No se encontraron usuarios",
     });
   } catch (error) {
     console.error("Error en searchUsers:", error);
@@ -557,6 +536,7 @@ exports.searchUsers = async (req, res) => {
     });
   }
 };
+
 exports.confirmUser = async function (req, res) {
   const { token } = req.params;
 

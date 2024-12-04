@@ -1,4 +1,5 @@
 const PostsService = require("../services/posts.service");
+const UserService = require("../services/user.service");
 const { uploadImage, uploadVideo } = require("../services/cloudinary");
 const fs = require("fs").promises; // Usamos fs.promises para usar async/await correctamente
 const path = require("path"); // Para gestionar rutas de archivos
@@ -74,6 +75,7 @@ exports.getPostById = async (req, res) => {
   }
 };
 
+// Método consolidado para publicar un post
 exports.publishPost = async (req, res) => {
   try {
     const imageUrls = [];
@@ -85,7 +87,6 @@ exports.publishPost = async (req, res) => {
         const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
         imageUrls.push(imageUrl);
       }
-    } else {
     }
 
     // Procesar los videos en req.files.videos
@@ -94,7 +95,6 @@ exports.publishPost = async (req, res) => {
         const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
         videoUrls.push(videoUrl);
       }
-    } else {
     }
 
     // Recoger los datos del post
@@ -111,6 +111,10 @@ exports.publishPost = async (req, res) => {
     // Guardar el post utilizando el servicio de Posts
     const nuevoPost = await PostsService.crearPost(postData);
 
+    // Después de crear el post, calcular el nivel del usuario que lo publicó
+    const userNickname = req.body.user;  // Suponemos que en `req.body.user` está el usernickname del autor
+    await UserService.calculateUserLevel(userNickname); // Llamamos a la función que calcula el nivel
+
     res.status(201).json(nuevoPost);
   } catch (error) {
     console.error("Error al publicar el post:", error);
@@ -118,6 +122,7 @@ exports.publishPost = async (req, res) => {
   }
 };
 
+// Manejo de interacciones (likes y comentarios)
 exports.handleInteractions = async (req, res) => {
   try {
     const postId = req.params.id; // ID del post desde los parámetros
@@ -141,11 +146,13 @@ exports.handleInteractions = async (req, res) => {
         .json({ status: 404, message: "Post no encontrado" });
     }
 
+    let updatedPost;
+
     if (action === "like") {
       // Incrementar o decrementar el contador de likes
-      const updatedPost = await PostsService.toggleLike(postId, username);
-      //envia notificacion
-      await PostsService.handleNotification(userId, username,postId,action)
+      updatedPost = await PostsService.toggleLike(postId, username);
+      // Enviar notificación (si se incluye en la lógica)
+      await PostsService.handleNotification(userId, username, postId, action);
 
       return res.status(200).json({
         status: 200,
@@ -154,14 +161,10 @@ exports.handleInteractions = async (req, res) => {
       });
     } else if (action === "comment") {
       // Agregar comentario al post con el username
-      const updatedPost = await PostsService.addComment(
-        postId,
-        username,
-        comment
-      );
+      updatedPost = await PostsService.addComment(postId, username, comment);
 
-      //envia notificacion
-      await PostsService.handleNotification(userId, username,postId,action,comment)
+      // Enviar notificación (si se incluye en la lógica)
+      await PostsService.handleNotification(userId, username, postId, action, comment);
 
       return res.status(200).json({
         status: 200,
@@ -174,6 +177,15 @@ exports.handleInteractions = async (req, res) => {
         message: "Acción inválida. Usa 'like' o 'comment'.",
       });
     }
+
+    // Después de la interacción, calcular el nivel del usuario (sin bloquear la respuesta)
+    await UserService.calculateUserLevel(username); // Llamamos al cálculo del nivel del usuario
+
+    return res.status(200).json({
+      status: 200,
+      data: updatedPost,
+      message: "Interacción procesada correctamente",
+    });
   } catch (error) {
     console.error("Error en handleInteractions:", error);
     return res.status(500).json({
@@ -193,7 +205,7 @@ exports.getPostsFromFollowing = async (req, res) => {
       message: "Posts obtenidos exitosamente",
     });
   } catch (error) {
-    console.error("6. Error en controlador:", error);
+    console.error("Error en controlador:", error);
     res.status(400).json({
       status: 400,
       message: error.message,
@@ -201,52 +213,7 @@ exports.getPostsFromFollowing = async (req, res) => {
   }
 };
 
-exports.publishPost = async (req, res) => {
-  try {
-    const imageUrls = [];
-    const videoUrls = [];
-
-    // Procesar las imágenes en req.files.images
-    if (req.files && req.files.images) {
-      for (const image of req.files.images) {
-        const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
-        imageUrls.push(imageUrl);
-      }
-    } else {
-    }
-
-    // Procesar los videos en req.files.videos
-    if (req.files && req.files.videos) {
-      for (const video of req.files.videos) {
-        const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
-        videoUrls.push(videoUrl);
-      }
-    } else {
-    }
-
-    // Recoger los datos del post
-    const postData = {
-      title: req.body.title,
-      description: req.body.description,
-      location: req.body.location,
-      user: req.body.user,
-      userAvatar: req.body.userAvatar,
-      images: imageUrls,
-      videos: videoUrls,
-    };
-
-    // Guardar el post utilizando el servicio de Posts
-    const nuevoPost = await PostsService.crearPost(postData);
-
-    res.status(201).json(nuevoPost);
-  } catch (error) {
-    console.error("Error al publicar el post:", error);
-    res.status(500).json({ error: "Hubo un error al crear el post" });
-  }
-};
-
-// controllers/posts.controller.js
-
+// Método para agregar a favoritos
 exports.toggleFavoritePost = async (req, res) => {
   try {
     const postId = req.params.id; // El ID del post que el usuario quiere marcar como favorito
@@ -269,7 +236,9 @@ exports.toggleFavoritePost = async (req, res) => {
 
     if (isFavorite) {
       // Si el post ya es favorito, lo eliminamos de la lista de favoritos
-      user.favoritePosts = user.favoritePosts.filter((id) => id.toString() !== postId.toString());
+      user.favoritePosts = user.favoritePosts.filter(
+        (id) => id.toString() !== postId.toString()
+      );
       await user.save();
       return res.status(200).json({ message: "Post eliminado de favoritos" });
     } else {
