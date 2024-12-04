@@ -100,28 +100,34 @@ exports.addComment = async function (postId, username, comment) {
   }
 };
 
-exports.handleNotification = async function (userId, postOwner,postId,action,comment=null) {
+exports.handleNotification = async function (userId, postOwner, postId, action, comment = null) {
   try {
-    //crea la notificacion
-    console.log("ACA LLEGO EEH ")
-    let text="Like on your post";
-    if(action==="comment")
-    text=`Comment on your post: "${comment}"`;
+    let text = "Like on your post";
+    if (action === "comment") {
+      text = `Comment on your post: "${comment}"`;
+    }
 
-    const postOwnerId = await this.getUserByNickname(postOwner);
-    console.log("postOwnerId: ",postOwnerId, "text: ",text)
-    
-    const {usernickname}= await getUserById(userId);
-      const notification = {
-        type: action,
-        user: usernickname,
-        text: text,
-        time: Date.now(),
-        postId:postId
-      };
-      await User.findByIdAndUpdate(postOwnerId, {
-        $push: { notificaciones: notification },
-      }, { new: true });
+    // Obtiene el postOwnerId
+    const postOwnerId = await this.getUserByNickname(postOwner);  // El uso de `this` aquí es incorrecto
+
+    console.log("postOwnerId: ", postOwnerId, "text: ", text);
+
+    // Cambia a este método directamente
+    const user = await User.findById(userId);  // Usamos `User` para obtener el ID del usuario
+    const { usernickname } = user;
+
+    const notification = {
+      type: action,
+      user: usernickname,
+      text: text,
+      time: Date.now(),
+      postId: postId,
+    };
+
+    // Aquí se actualiza el postOwner con la notificación
+    await User.findByIdAndUpdate(postOwnerId, {
+      $push: { notificaciones: notification },
+    }, { new: true });
 
   } catch (error) {
     throw new Error(`Error al ${action} al usuario: ` + error.message);
@@ -195,5 +201,17 @@ exports.getUserPostsAndCommentsCount = async function (usernickname) {
   } catch (error) {
     console.error("Error al obtener los posts y comentarios del usuario:", error);
     throw new Error("Error al obtener los posts y comentarios del usuario");
+  }
+};
+
+exports.getUserById = async function (userId) {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+    return user;
+  } catch (error) {
+    throw new Error("Error al obtener el usuario por ID: " + error.message);
   }
 };
