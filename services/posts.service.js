@@ -208,3 +208,15 @@ exports.getUserPostsAndCommentsCount = async function (usernickname) {
     throw new Error("Error al obtener los posts y comentarios del usuario");
   }
 };
+
+exports.getUserById = async function (userId) {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+    return user;
+  } catch (error) {
+    throw new Error("Error al obtener el usuario por ID: " + error.message);
+  }
+};
