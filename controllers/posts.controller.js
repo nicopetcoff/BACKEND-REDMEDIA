@@ -121,6 +121,9 @@ exports.handleInteractions = async (req, res) => {
     if (action === "like") {
       // Incrementar o decrementar el contador de likes
       const updatedPost = await PostsService.toggleLike(postId, username);
+      //envia notificacion
+      await PostsService.handleNotification(userId, username,postId,action)
+
       return res.status(200).json({
         status: 200,
         data: updatedPost,
@@ -133,6 +136,10 @@ exports.handleInteractions = async (req, res) => {
         username,
         comment
       );
+
+      //envia notificacion
+      await PostsService.handleNotification(userId, username,postId,action,comment)
+
       return res.status(200).json({
         status: 200,
         data: updatedPost,

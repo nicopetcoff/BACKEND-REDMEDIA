@@ -127,7 +127,7 @@ exports.notificaciones = async function (req, res) {
     const notificicaciones = await UserService.getUserNotificaciones(
       decoded.id
     );
-    return notificicaciones.notificaciones;
+    return res.status(200).json(notificicaciones.notificaciones.reverse());
   } catch (e) {
     throw Error("Error al obtener las notificaciones del usuario");
   }
