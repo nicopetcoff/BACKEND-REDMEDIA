@@ -105,16 +105,12 @@ exports.getUsers = async () => {
   try {
     const users = await User.find(
       {},
-      {
-        password: 0,
-        resetToken: 0,
-        resetTokenExpires: 0,
-      }
-    ).lean();
+      { password: 0, resetToken: 0, resetTokenExpires: 0 }
+    ).lean(); // Eliminamos el cálculo de nivel aquí
 
     return users;
   } catch (error) {
-    console.error("Error en getUsers service:", error);
+    console.error("Error al obtener los usuarios:", error);
     throw new Error("Error al obtener los usuarios");
   }
 };
@@ -265,13 +261,18 @@ exports.calculateUserLevel = async function (usernickname) {
       level = 2; // Nivel 2: 2 posts
     }
 
-    // Actualizar el nivel del usuario en la base de datos
-    const user = await User.findOne({ usernickname: usernickname });
+    // Buscar el usuario, excluyendo el campo `password` al hacer la consulta
+    const user = await User.findOne({ usernickname: usernickname }).select('-password');
     if (!user) {
       throw new Error("Usuario no encontrado");
     }
 
-    // Guardar el nivel calculado
+    // Si el nivel ya es el adecuado, no hacemos nada
+    if (user.level === level) {
+      return level;
+    }
+
+    // Guardar solo el nivel calculado sin afectar otros campos
     user.level = level;
     await user.save();
 
@@ -279,23 +280,5 @@ exports.calculateUserLevel = async function (usernickname) {
   } catch (error) {
     console.error("Error calculando el nivel del usuario:", error);
     throw new Error("Error al calcular el nivel del usuario");
-  }
-};
-
-exports.getUserByNickname = async function (usernickname) {
-  try {
-    // Busca el usuario por nickname, sin importar mayúsculas/minúsculas
-    const user = await User.findOne({
-      usernickname: { $regex: new RegExp("^" + usernickname + "$", "i") },
-    });
-
-    if (!user) {
-      throw new Error("Usuario no encontrado");
-    }
-
-    return user;
-  } catch (error) {
-    console.error("Error en getUserByNickname:", error);
-    throw new Error("Error al obtener el usuario");
   }
 };

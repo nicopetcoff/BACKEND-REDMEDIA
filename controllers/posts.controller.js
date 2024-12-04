@@ -1,4 +1,5 @@
 const PostsService = require("../services/posts.service");
+const UserService = require("../services/user.service");
 const { uploadImage, uploadVideo } = require("../services/cloudinary");
 const fs = require("fs").promises; // Usamos fs.promises para usar async/await correctamente
 const path = require("path"); // Para gestionar rutas de archivos
@@ -74,66 +75,6 @@ exports.getPostById = async (req, res) => {
   }
 };
 
-exports.crearPost = async (req, res) => {
-  try {
-    // Verificar que se hayan recibido archivos
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        status: 400,
-        message: "Se requiere al menos una imagen",
-      });
-    }
-
-    const imageUrls = [];
-
-    // Subir cada imagen a Cloudinary
-    for (const file of req.files) {
-      try {
-        const result = await uploadToCloudinary(file.buffer);
-        imageUrls.push(result.secure_url);
-      } catch (uploadError) {
-        continue; // Si ocurre un error con un archivo, continuamos con el siguiente
-      }
-    }
-
-    // Si no se logró subir ninguna imagen
-    if (imageUrls.length === 0) {
-      return res.status(400).json({
-        status: 400,
-        message: "No se pudo subir ninguna imagen",
-      });
-    }
-
-    // Datos del nuevo post
-    const postData = {
-      title: req.body.title,
-      description: req.body.description || "",
-      location: req.body.location,
-      user: req.body.user,
-      image: imageUrls,
-      sold: false,
-      likes: 0,
-      comments: [],
-    };
-
-    // Crear el nuevo post utilizando el servicio
-    const nuevoPost = await PostsService.crearPost(postData);
-
-    // Respuesta de éxito
-    res.status(201).json({
-      status: 201,
-      data: nuevoPost,
-      message: "Post creado exitosamente",
-    });
-  } catch (error) {
-    // En caso de error, responder con el mensaje de error
-    res.status(400).json({
-      status: 400,
-      message: error.message || "Error al crear el post",
-    });
-  }
-};
-
 exports.handleInteractions = async (req, res) => {
   try {
     const postId = req.params.id; // ID del post desde los parámetros
@@ -157,32 +98,29 @@ exports.handleInteractions = async (req, res) => {
         .json({ status: 404, message: "Post no encontrado" });
     }
 
+    let updatedPost;
+
     if (action === "like") {
       // Incrementar o decrementar el contador de likes
-      const updatedPost = await PostsService.toggleLike(postId, username);
-      return res.status(200).json({
-        status: 200,
-        data: updatedPost,
-        message: "Interacción de 'me gusta' procesada",
-      });
+      updatedPost = await PostsService.toggleLike(postId, username);
     } else if (action === "comment") {
       // Agregar comentario al post con el username
-      const updatedPost = await PostsService.addComment(
-        postId,
-        username,
-        comment
-      );
-      return res.status(200).json({
-        status: 200,
-        data: updatedPost,
-        message: "Comentario agregado",
-      });
+      updatedPost = await PostsService.addComment(postId, username, comment);
     } else {
       return res.status(400).json({
         status: 400,
         message: "Acción inválida. Usa 'like' o 'comment'.",
       });
     }
+
+    // Después de la interacción, calcular el nivel del usuario (sin bloquear la respuesta)
+    await UserService.calculateUserLevel(username); // Llamamos al cálculo del nivel del usuario
+
+    return res.status(200).json({
+      status: 200,
+      data: updatedPost,
+      message: "Interacción procesada correctamente",
+    });
   } catch (error) {
     console.error("Error en handleInteractions:", error);
     return res.status(500).json({
@@ -221,7 +159,6 @@ exports.publishPost = async (req, res) => {
         const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
         imageUrls.push(imageUrl);
       }
-    } else {
     }
 
     // Procesar los videos en req.files.videos
@@ -230,7 +167,6 @@ exports.publishPost = async (req, res) => {
         const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
         videoUrls.push(videoUrl);
       }
-    } else {
     }
 
     // Recoger los datos del post
@@ -246,6 +182,10 @@ exports.publishPost = async (req, res) => {
 
     // Guardar el post utilizando el servicio de Posts
     const nuevoPost = await PostsService.crearPost(postData);
+
+    // Después de crear el post, calcular el nivel del usuario que lo publicó
+    const userNickname = req.body.user; // Suponemos que en `req.body.user` está el usernickname del autor
+    await UserService.calculateUserLevel(userNickname); // Llamamos a la función que calcula el nivel
 
     res.status(201).json(nuevoPost);
   } catch (error) {
@@ -278,7 +218,9 @@ exports.toggleFavoritePost = async (req, res) => {
 
     if (isFavorite) {
       // Si el post ya es favorito, lo eliminamos de la lista de favoritos
-      user.favoritePosts = user.favoritePosts.filter((id) => id.toString() !== postId.toString());
+      user.favoritePosts = user.favoritePosts.filter(
+        (id) => id.toString() !== postId.toString()
+      );
       await user.save();
       return res.status(200).json({ message: "Post eliminado de favoritos" });
     } else {
