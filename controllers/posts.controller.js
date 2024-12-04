@@ -74,63 +74,47 @@ exports.getPostById = async (req, res) => {
   }
 };
 
-exports.crearPost = async (req, res) => {
+exports.publishPost = async (req, res) => {
   try {
-    // Verificar que se hayan recibido archivos
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        status: 400,
-        message: "Se requiere al menos una imagen",
-      });
-    }
-
     const imageUrls = [];
+    const videoUrls = [];
 
-    // Subir cada imagen a Cloudinary
-    for (const file of req.files) {
-      try {
-        const result = await uploadToCloudinary(file.buffer);
-        imageUrls.push(result.secure_url);
-      } catch (uploadError) {
-        continue; // Si ocurre un error con un archivo, continuamos con el siguiente
+    // Procesar las imágenes en req.files.images
+    if (req.files && req.files.images) {
+      for (const image of req.files.images) {
+        const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
+        imageUrls.push(imageUrl);
       }
+    } else {
     }
 
-    // Si no se logró subir ninguna imagen
-    if (imageUrls.length === 0) {
-      return res.status(400).json({
-        status: 400,
-        message: "No se pudo subir ninguna imagen",
-      });
+    // Procesar los videos en req.files.videos
+    if (req.files && req.files.videos) {
+      for (const video of req.files.videos) {
+        const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
+        videoUrls.push(videoUrl);
+      }
+    } else {
     }
 
-    // Datos del nuevo post
+    // Recoger los datos del post
     const postData = {
       title: req.body.title,
-      description: req.body.description || "",
+      description: req.body.description,
       location: req.body.location,
       user: req.body.user,
-      image: imageUrls,
-      sold: false,
-      likes: 0,
-      comments: [],
+      userAvatar: req.body.userAvatar,
+      images: imageUrls,
+      videos: videoUrls,
     };
 
-    // Crear el nuevo post utilizando el servicio
+    // Guardar el post utilizando el servicio de Posts
     const nuevoPost = await PostsService.crearPost(postData);
 
-    // Respuesta de éxito
-    res.status(201).json({
-      status: 201,
-      data: nuevoPost,
-      message: "Post creado exitosamente",
-    });
+    res.status(201).json(nuevoPost);
   } catch (error) {
-    // En caso de error, responder con el mensaje de error
-    res.status(400).json({
-      status: 400,
-      message: error.message || "Error al crear el post",
-    });
+    console.error("Error al publicar el post:", error);
+    res.status(500).json({ error: "Hubo un error al crear el post" });
   }
 };
 
