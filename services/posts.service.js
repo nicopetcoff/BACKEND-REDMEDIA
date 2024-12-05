@@ -1,217 +1,229 @@
-// services/posts.service.js
-const Post = require("../models/post.model");
+const PostsService = require("../services/posts.service");
+const UserService = require("../services/user.service");
+const { uploadImage, uploadVideo } = require("../services/cloudinary");
+const fs = require("fs").promises;
+const path = require("path");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 const User = require("../models/User.model");
 
-exports.getAllPosts = async function () {
+exports.getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
-      .sort({ createdAt: -1 }) // -1 for descending order (most recent first)
-      .lean(); // For better performance
-    return posts;
+    const posts = await PostsService.getAllPosts();
+    res.status(200).json({
+      status: 200,
+      data: posts,
+      message: "Posts obtained successfully",
+    });
   } catch (error) {
-    throw Error("Error obtaining posts from the database");
+    console.error("Error getting posts:", error);
+    res.status(400).json({
+      status: 400,
+      message: error.message || "Error getting posts",
+    });
   }
 };
 
-exports.getPostsByUser = async function (userId) {
+exports.getUserPosts = async (req, res) => {
   try {
-    const user = await User.findById(userId);
+    const userId = req.userId;
 
-    if (!user) {
-      throw new Error("User not found");
+    if (!userId) {
+      return res.status(401).json({
+        status: 401,
+        message: "User not authenticated",
+      });
     }
 
-    const posts = await Post.find({ user: user.usernickname })
-      .sort({ createdAt: -1 }) // Descending order by date
-      .lean();
+    const posts = await PostsService.getPostsByUser(userId);
 
-    return posts;
+    res.status(200).json({
+      status: 200,
+      data: posts || [],
+      message: "User's posts obtained successfully",
+    });
   } catch (error) {
-    console.error("Error in getPostsByUser:", error);
-    throw new Error("Error obtaining the user's posts");
+    console.error("Error in getUserPosts:", error);
+    res.status(500).json({
+      status: 500,
+      message: "Error obtaining user's posts",
+    });
   }
 };
 
-exports.getPostById = async function (id) {
+exports.getPostById = async (req, res) => {
   try {
-    const post = await Post.findById(id).lean();
-    return post;
+    console.log("BACKK", req.params.id);
+    const post = await PostsService.getPostById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({
+        status: 404,
+        message: "Post not found",
+      });
+    }
+    res.status(200).json({
+      status: 200,
+      data: post,
+      message: "Post obtained successfully",
+    });
   } catch (error) {
-    throw Error("Error obtaining the post from the database");
+    res.status(400).json({
+      status: 400,
+      message: error.message,
+    });
   }
 };
 
-exports.crearPost = async function (post) {
-  // Create a Post instance with the received data
-  const nuevoPost = new Post({
-    title: post.title,
-    description: post.description,
-    location: post.location,
-    user: post.user,
-    userAvatar: post.userAvatar,
-    image: post.images || [], // If no images, store an empty array
-    videos: post.videos || [], // If no videos, store an empty array
-  });
-
+exports.publishPost = async (req, res) => {
   try {
-    // Save the new post in MongoDB
-    const savedPost = await nuevoPost.save();
+    const imageUrls = [];
+    const videoUrls = [];
 
-    // Return the saved post
-    return savedPost;
-  } catch (error) {
-    console.error("Error saving the post to the database:", error);
-    throw new Error("Error creating the post in the database");
-  }
-};
-
-exports.toggleLike = async function (postId, username) {
-  try {
-    const post = await Post.findById(postId);
-    if (!post) throw new Error("Post not found");
-
-    if (post.likes.includes(username)) {
-      // If already liked, remove the like
-      post.likes = post.likes.filter((user) => user !== username);
-    } else {
-      // If not liked, add the like
-      post.likes.push(username);
+    if (req.files && req.files.images) {
+      for (const image of req.files.images) {
+        const imageUrl = await uploadImage(image.buffer);
+        imageUrls.push(imageUrl);
+      }
     }
 
-    const updatedPost = await post.save();
-    return updatedPost.toObject();
-  } catch (error) {
-    throw new Error("Error toggling 'like': " + error.message);
-  }
-};
-
-exports.addComment = async function (postId, username, comment) {
-  try {
-    const post = await Post.findById(postId);
-    if (!post) throw new Error("Post not found");
-
-    // Add the comment to the post's comments array
-    post.comments.push({ username, comment });
-
-    const updatedPost = await post.save();
-    return updatedPost.toObject();
-  } catch (error) {
-    throw new Error("Error adding comment: " + error.message);
-  }
-};
-
-exports.handleNotification = async function (userId, postOwner, postId, action, comment = null) {
-  try {
-    let text = "Like on your post";
-    if (action === "comment") {
-      text = `Comment on your post: "${comment}"`;
+    if (req.files && req.files.videos) {
+      for (const video of req.files.videos) {
+        const videoUrl = await uploadVideo(video.buffer);
+        videoUrls.push(videoUrl);
+      }
     }
 
-    // Get the postOwnerId
-    const postOwnerId = await this.getUserByNickname(postOwner);  // The use of `this` here is incorrect
-
-    console.log("postOwnerId: ", postOwnerId, "text: ", text);
-
-    // Change to this method directly
-    const user = await User.findById(userId);  // We use `User` to get the user's ID
-    const { usernickname } = user;
-
-    const notification = {
-      type: action,
-      user: usernickname,
-      text: text,
-      time: Date.now(),
-      postId: postId,
+    const postData = {
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      user: req.body.user,
+      userAvatar: req.body.userAvatar,
+      images: imageUrls,
+      videos: videoUrls,
     };
 
-    // Update the postOwner with the notification
-    await User.findByIdAndUpdate(postOwnerId, {
-      $push: { notificaciones: notification },
-    }, { new: true });
+    const newPost = await PostsService.crearPost(postData);
 
+    const userNickname = req.body.user;
+    await UserService.calculateUserLevel(userNickname);
+
+    res.status(201).json(newPost);
   } catch (error) {
-    throw new Error(`Error handling ${action} for the user: ` + error.message);
+    console.error("Error publishing post:", error);
+    res.status(500).json({ error: "There was an error creating the post" });
   }
 };
 
-exports.getUserByNickname = async function (usernickname) {
+exports.handleInteractions = async (req, res) => {
   try {
-    const user = await User.findOne({ usernickname: usernickname });
-    return user._id;
-  } catch (error) {
-    throw new Error("Error obtaining the user from the database");
-  }
-}
+    const postId = req.params.id;
+    const { action, comment } = req.body;
+    const userId = req.userId;
 
-exports.getPostsFromFollowing = async function (userId) {
-  try {
-    // Get the current user and their following
-    const currentUser = await User.findById(userId);
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    // Get the followed users' documents
-    const followedUsers = await User.find(
-      {
-        _id: { $in: currentUser.following },
-      },
-      "usernickname"
-    );
-
-    // Get all usernicknames (including the current user's)
-    const usernames = [
-      currentUser.usernickname,
-      ...followedUsers.map((user) => user.usernickname),
-    ];
-
-    // Find posts from both the user and the followed users
-    const posts = await Post.find({
-      user: { $in: usernames },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return posts;
-  } catch (error) {
-    console.error("Error in getPostsFromFollowing:", error);
-    throw new Error("Error obtaining posts from followed users");
-  }
-};
-
-exports.getUserPostsAndCommentsCount = async function (usernickname) {
-  try {
-    // Find the user's posts
-    const posts = await Post.find({ user: usernickname });
-
-    // If there are no posts, return a count of 0
-    if (!posts || posts.length === 0) {
-      return { postCount: 0, commentCount: 0 };
-    }
-
-    let postCount = posts.length;
-    let commentCount = 0;
-
-    // Count the comments
-    posts.forEach(post => {
-      commentCount += post.comments.length;
-    });
-
-    return { postCount, commentCount };
-  } catch (error) {
-    console.error("Error obtaining user's posts and comments:", error);
-    throw new Error("Error obtaining user's posts and comments");
-  }
-};
-
-exports.getUserById = async function (userId) {
-  try {
     const user = await User.findById(userId);
     if (!user) {
-      throw new Error("User not found");
+      return res.status(404).json({ message: "Authenticated user not found" });
     }
-    return user;
+    const username = user.usernickname;
+
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res.status(404).json({ status: 404, message: "Post not found" });
+    }
+
+    let updatedPost;
+
+    if (action === "like") {
+      updatedPost = await PostsService.toggleLike(postId, username);
+      await PostsService.handleNotification(userId, username, postId, action);
+
+      return res.status(200).json({
+        status: 200,
+        data: updatedPost,
+        message: "'Like' interaction processed",
+      });
+    } else if (action === "comment") {
+      updatedPost = await PostsService.addComment(postId, username, comment);
+      await PostsService.handleNotification(userId, username, postId, action, comment);
+
+      return res.status(200).json({
+        status: 200,
+        data: updatedPost,
+        message: "Comment added",
+      });
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid action. Use 'like' or 'comment'.",
+      });
+    }
+
+    await UserService.calculateUserLevel(username);
+
+    return res.status(200).json({
+      status: 200,
+      data: updatedPost,
+      message: "Interaction processed successfully",
+    });
   } catch (error) {
-    throw new Error("Error obtaining user by ID: " + error.message);
+    console.error("Error in handleInteractions:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Error processing the interaction.",
+    });
+  }
+};
+
+exports.getPostsFromFollowing = async (req, res) => {
+  try {
+    const posts = await PostsService.getPostsFromFollowing(req.userId);
+
+    res.status(200).json({
+      status: 200,
+      data: posts,
+      message: "Posts obtained successfully",
+    });
+  } catch (error) {
+    console.error("Error in controller:", error);
+    res.status(400).json({
+      status: 400,
+      message: error.message,
+    });
+  }
+};
+
+exports.toggleFavoritePost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.userId;
+
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isFavorite = user.favoritePosts.includes(postId);
+
+    if (isFavorite) {
+      user.favoritePosts = user.favoritePosts.filter(
+        (id) => id.toString() !== postId.toString()
+      );
+      await user.save();
+      return res.status(200).json({ message: "Post removed from favorites" });
+    } else {
+      user.favoritePosts.push(postId);
+      await user.save();
+      return res.status(200).json({ message: "Post added to favorites" });
+    }
+  } catch (error) {
+    console.error("Error handling favorite:", error);
+    res.status(500).json({ message: "Error handling post favorite" });
   }
 };

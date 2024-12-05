@@ -53,6 +53,7 @@ exports.getUserPosts = async (req, res) => {
 
 exports.getPostById = async (req, res) => {
   try {
+    console.log("BACKK", req.params.id)
     const post = await PostsService.getPostById(req.params.id);
 
     if (!post) {
