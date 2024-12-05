@@ -15,10 +15,10 @@ exports.registerUser = async function (req, res, next) {
     const nickExists = await UserService.verificarNickExistente(req.body.nick);
 
     if (emailExists) {
-      throw { message: "The email is already registered" };
+      throw { message: "El email ya está registrado" };
     }
     if (nickExists) {
-      throw { message: "The nickname is already registered" };
+      throw { message: "El nickname ya está registrado" };
     }
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 8);
@@ -46,14 +46,14 @@ exports.registerUser = async function (req, res, next) {
 
     const confirmLink = `https://redmedia.vercel.app/confirm-user/${confirmToken}`;
 
-    const subject = "Confirm Your Account - RedMedia";
+    const subject = "Confirma tu cuenta - RedMedia";
     const html = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirm Your Account</title>
+        <title>Confirma tu Cuenta</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -112,17 +112,17 @@ exports.registerUser = async function (req, res, next) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Confirm Your Account</h1>
+            <h1>Confirma tu Cuenta</h1>
           </div>
           <div class="content">
-            <p>Hello <strong>${createdUser.nombre}</strong>,</p>
-            <p>Thank you for registering at <strong>Red Media</strong>. Please confirm your account by clicking the button below:</p>
-            <a href="${confirmLink}" class="btn">Confirm Account</a>
-            <p>If you did not request this account, you can ignore this email.</p>
-            <p>This link will expire in 24 hours.</p>
+            <p>Hola <strong>${createdUser.nombre}</strong>,</p>
+            <p>Gracias por registrarte en <strong>Red Media</strong>. Por favor, confirma tu cuenta haciendo clic en el botón de abajo:</p>
+            <a href="${confirmLink}" class="btn">Confirmar Cuenta</a>
+            <p>Si no solicitaste esta cuenta, puedes ignorar este correo.</p>
+            <p>Este enlace expirará en 24 horas.</p>
           </div>
           <div class="footer">
-            <p>This email was sent from Red Media App.</p>
+            <p>Este correo fue enviado desde Red Media App.</p>
           </div>
         </div>
       </body>
@@ -133,7 +133,7 @@ exports.registerUser = async function (req, res, next) {
 
     res.status(201).json({
       message:
-        "User created successfully. Please check your email to confirm your account.",
+        "Usuario creado exitosamente. Revisa tu correo para confirmar tu cuenta.",
     });
   } catch (e) {
     res.status(400).json({
@@ -142,26 +142,28 @@ exports.registerUser = async function (req, res, next) {
     });
   }
 };
-
 exports.googleLogin = async function (req, res, next) {
   try {
     const emailExists = await UserService.verificarEmailExistente(
       req.body.email
     );
+    //si el email ya existe, verifica si el id coincide para iniciar sesion
     if (emailExists) {
       const userData = { email: req.body.email, userId: req.body.userId };
       const idCoincide = await UserService.verificarIdExistente(userData);
       if (!idCoincide) {
-        throw { message: "Error logging in" };
+        throw { message: "Error al iniciar sesion" };
       }
       var user = await UserService.getUserByEmail(req.body.email);
-      var token = jwt.sign({ id: user._id }, process.env.SECRET);
+      var token = jwt.sign({ id: user._id }, process.env.SECRET); // Sin expiración
 
+      // Enviar respuesta al frontend
       return res.status(200).json({
         token: token,
-        message: "Login successful",
+        message: "Inicio de sesión exitoso",
       });
     } else {
+      //sino lo registrara
       var newUser = {
         userId: req.body.userId,
         nombre: req.body.name,
@@ -174,10 +176,10 @@ exports.googleLogin = async function (req, res, next) {
           "https://res.cloudinary.com/docrp6wwd/image/upload/v1731610184/ixvdicibshjrrrmo2rku.jpg",
       };
       var createdUser = await UserService.createUser(newUser);
-      var token = jwt.sign({ id: createdUser._id }, process.env.SECRET);
+      var token = jwt.sign({ id: createdUser._id }, process.env.SECRET); // Sin expiración
       res.status(201).json({
         token: token,
-        message: "User created successfully",
+        message: "Usuario creado exitosamente",
       });
     }
   } catch (e) {
@@ -187,26 +189,29 @@ exports.googleLogin = async function (req, res, next) {
 
 exports.loginUser = async function (req, res, next) {
   try {
+    // Busca al usuario por su email
     const user = await UserService.getUserByEmail(req.body.email);
 
+    // Si el usuario no existe
     if (!user) {
-      return res.status(404).json({ message: "The user does not exist" });
+      return res.status(404).json({ message: "El usuario no existe" });
     }
 
+    // Si el usuario no está confirmado
     if (!user.isConfirmed) {
       const confirmToken = jwt.sign({ id: user._id }, process.env.SECRET, {
         expiresIn: "24h",
       });
 
       const confirmLink = `https://redmedia.vercel.app/confirm-user/${confirmToken}`;
-      const subject = "Confirm Your Account - RedMedia";
+      const subject = "Confirma tu cuenta - RedMedia";
       const html = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Confirm Your Account</title>
+          <title>Confirma tu Cuenta</title>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -265,55 +270,63 @@ exports.loginUser = async function (req, res, next) {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Confirm Your Account</h1>
+              <h1>Confirma tu Cuenta</h1>
             </div>
             <div class="content">
-              <p>Hello <strong>${user.nombre}</strong>,</p>
-              <p>Please confirm your account by clicking the button below:</p>
-              <a href="${confirmLink}" class="btn">Confirm Account</a>
-              <p>If you did not request this account, you can ignore this email.</p>
-              <p>This link will expire in 24 hours.</p>
+              <p>Hola <strong>${user.nombre}</strong>,</p>
+              <p>Por favor, confirma tu cuenta haciendo clic en el botón de abajo:</p>
+              <a href="${confirmLink}" class="btn">Confirmar Cuenta</a>
+              <p>Si no solicitaste esta cuenta, puedes ignorar este correo.</p>
+              <p>Este enlace expirará en 24 horas.</p>
             </div>
             <div class="footer">
-              <p>This email was sent from Red Media App.</p>
+              <p>Este correo fue enviado desde Red Media App.</p>
             </div>
           </div>
         </body>
         </html>
       `;
 
+      // Enviar el correo de confirmación
       await mailSender(user.email, subject, html);
 
+      // Retornar mensaje de confirmación
       return res.status(403).json({
         message:
-          "You must confirm your account before logging in. We have resent the confirmation email.",
+          "Debes confirmar tu cuenta antes de iniciar sesión. Hemos reenviado el correo de confirmación.",
       });
     }
 
+    // Verificar la contraseña
     const passwordIsValid = bcrypt.compareSync(
       req.body.password,
       user.password
     );
 
+    // Si la contraseña es incorrecta
     if (!passwordIsValid) {
-      return res.status(401).json({ message: "Incorrect password" });
+      return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
+    // Generar el token de sesión
     const token = jwt.sign({ id: user._id }, process.env.SECRET);
 
+    // Retornar el token y mensaje de éxito
     return res.status(200).json({
       token: token,
-      message: "Login successful",
+      message: "Inicio de sesión exitoso",
     });
   } catch (error) {
-    console.error("Error in loginUser:", error);
+    console.error("Error en loginUser:", error);
+    // Retornar error genérico si algo falla
     return res.status(500).json({
       status: 500,
-      message: "Error logging in",
+      message: "Error al iniciar sesión",
     });
   }
 };
 
+// El resto del código permanece igual...
 exports.notificaciones = async function (req, res) {
   try {
     const token = req.headers["x-access-token"];
@@ -323,26 +336,30 @@ exports.notificaciones = async function (req, res) {
     );
     return res.status(200).json(notificicaciones.notificaciones.reverse());
   } catch (e) {
-    throw Error("Error obtaining user notifications");
+    throw Error("Error al obtener las notificaciones del usuario");
   }
 };
 
 exports.getUserData = async function (req, res) {
   try {
-    const token = req.headers["x-access-token"];
+    // Decodificar el token para obtener el userId
+    const token = req.headers["x-access-token"]; // Suponiendo que el token viene en los headers
     if (!token) {
-      return res.status(400).json({ message: "Token not provided" });
+      return res.status(400).json({ message: "Token no proporcionado" });
     }
 
+    // Decodificar el token
     const decoded = jwt.verify(token, process.env.SECRET);
-    const userId = decoded.id;
+    const userId = decoded.id; // Extraemos el userId desde el token
 
+    // Llamamos al servicio para obtener el usuario con el ID
     const user = await UserService.getUserById(userId);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // Retornar los datos del usuario sin recalcular el nivel aquí
     return res.status(200).json({
       status: 200,
       data: {
@@ -358,25 +375,28 @@ exports.getUserData = async function (req, res) {
       },
     });
   } catch (error) {
-    console.error("Error in getUserData:", error);
+    console.error("Error en getUserData:", error);
     return res.status(500).json({
       status: 500,
-      message: "Error obtaining user data",
+      message: "Error al obtener los datos del usuario",
     });
   }
 };
 
+// Modificar el controller de UserController
+
 exports.getUsers = async (req, res) => {
   try {
+    // Solo obtenemos los usuarios, no recalculamos el nivel aquí
     const users = await UserService.getUsers();
 
     return res.status(200).json({
       status: 200,
       data: users,
-      message: "Users obtained successfully",
+      message: "Usuarios obtenidos exitosamente",
     });
   } catch (error) {
-    console.error("Error in getUsers controller:", error);
+    console.error("Error en getUsers controller:", error);
     return res.status(400).json({
       status: 400,
       message: error.message,
@@ -389,20 +409,25 @@ exports.updateUserAttributes = async function (req, res) {
     const userId = req.userId;
     let updateData = { ...req.body };
 
+    // Lista de campos permitidos para actualizar
     const allowedFields = ["bio", "avatar", "coverImage", "nombre", "apellido", "genero"];
 
+    // Si hay archivos, procesarlos primero
     if (req.files) {
+      // Procesar avatar si existe
       if (req.files.avatar) {
         const avatarUrl = await uploadImage(req.files.avatar[0].buffer);
         updateData.avatar = avatarUrl;
       }
 
+      // Procesar coverImage si existe
       if (req.files.coverImage) {
         const coverUrl = await uploadImage(req.files.coverImage[0].buffer);
         updateData.coverImage = coverUrl;
       }
     }
 
+    // Filtrar solo los campos permitidos
     const filteredData = Object.keys(updateData)
       .filter((key) => allowedFields.includes(key))
       .reduce((obj, key) => {
@@ -411,7 +436,7 @@ exports.updateUserAttributes = async function (req, res) {
       }, {});
 
     if (Object.keys(filteredData).length === 0) {
-      throw { message: "No valid fields provided for update" };
+      throw { message: "No se proporcionaron campos válidos para actualizar" };
     }
 
     const updatedUser = await UserService.updateUserAttributes(
@@ -431,7 +456,7 @@ exports.updateUserAttributes = async function (req, res) {
         coverImage: updatedUser.coverImage,
         genero: updatedUser.genero,
       },
-      message: "User updated successfully",
+      message: "Usuario actualizado correctamente",
     });
   } catch (error) {
     return res.status(400).json({
@@ -443,32 +468,36 @@ exports.updateUserAttributes = async function (req, res) {
 
 exports.handleFollow = async (req, res) => {
   try {
-    const userId = req.userId;
-    const targetUserId = req.params.id;
-    const { action } = req.body;
+    const userId = req.userId; // ID del usuario autenticado (desde el token)
+    const targetUserId = req.params.id; // ID del usuario objetivo
+    const { action } = req.body; // "follow" o "unfollow"
 
+    // Verificar que el usuario objetivo existe
     const targetUser = await UserService.getUserById(targetUserId);
     if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // Verificar que el usuario no se está siguiendo a sí mismo
     if (userId === targetUserId) {
       return res
         .status(400)
-        .json({ message: "You cannot follow or unfollow yourself" });
+        .json({ message: "No puedes seguirte o dejar de seguirte a ti mismo" });
     }
 
     let message;
     if (action === "follow") {
+      // Llamar al servicio para seguir al usuario
       await UserService.addFollow(userId, targetUserId);
-      message = "You have started following the user";
+      message = "Has comenzado a seguir al usuario";
     } else if (action === "unfollow") {
+      // Llamar al servicio para dejar de seguir al usuario
       await UserService.removeFollow(userId, targetUserId);
-      message = "You have unfollowed the user";
+      message = "Has dejado de seguir al usuario";
     } else {
       return res
         .status(400)
-        .json({ message: "Invalid action. Use 'follow' or 'unfollow'" });
+        .json({ message: "Acción inválida. Usa 'follow' o 'unfollow'" });
     }
 
     return res.status(200).json({
@@ -476,34 +505,36 @@ exports.handleFollow = async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error("Error in handleFollow:", error);
-    return res.status(500).json({ message: "Error processing the request" });
+    console.error("Error en handleFollow:", error);
+    return res.status(500).json({ message: "Error al procesar la solicitud" });
   }
 };
 
 exports.searchUsers = async (req, res) => {
   try {
-    const { query } = req.query;
+    const { query } = req.query; // Recoge el parámetro `query` de la URL
 
     if (!query) {
       return res.status(400).json({
         status: 400,
-        message: "You must provide a search term",
+        message: "Debe proporcionar un término de búsqueda",
       });
     }
 
+    // Delegar la búsqueda al servicio
     const users = await UserService.searchUsers(query);
 
+    // Si no se encuentran usuarios, devolvemos una lista vacía
     return res.status(200).json({
       status: 200,
-      data: users,
-      message: users.length ? "Users found successfully" : "No users found",
+      data: users, // Aunque la lista esté vacía, la respuesta será exitosa con una lista vacía
+      message: users.length ? "Usuarios encontrados exitosamente" : "No se encontraron usuarios",
     });
   } catch (error) {
-    console.error("Error in searchUsers:", error);
+    console.error("Error en searchUsers:", error);
     return res.status(500).json({
       status: 500,
-      message: "Error performing the search",
+      message: "Error al realizar la búsqueda",
     });
   }
 };
@@ -512,49 +543,51 @@ exports.confirmUser = async function (req, res) {
   const { token } = req.params;
 
   try {
-    const decoded = jwt.verify(token, process.env.SECRET);
+    const decoded = jwt.verify(token, process.env.SECRET); // Decodificar el token
     const userId = decoded.id;
 
     const user = await UserService.getUserById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
     if (user.isConfirmed) {
-      return res.status(400).json({ message: "The user is already confirmed" });
+      return res.status(400).json({ message: "El usuario ya está confirmado" });
     }
 
-    await UserService.confirmUser(userId);
+    await UserService.confirmUser(userId); // Llamar al service para confirmar el usuario
 
-    res.status(200).json({ message: "User confirmed successfully" });
+    res.status(200).json({ message: "Usuario confirmado exitosamente" });
   } catch (error) {
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "The token has expired" });
+      return res.status(401).json({ message: "El token ha expirado" });
     } else {
-      return res.status(500).json({ message: "Error confirming the user" });
+      return res.status(500).json({ message: "Error al confirmar el usuario" });
     }
   }
 };
-
 exports.deleteAccount = async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId; // Obtener el ID del usuario desde el token
 
+    // Verificar si el usuario existe
     const user = await UserService.getUserById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // Eliminar el usuario
     await UserService.deleteUser(userId);
 
-    const subject = "Your Account Has Been Deleted - RedMedia";
+    // Enviar correo de confirmación de eliminación
+    const subject = "Tu cuenta ha sido eliminada - RedMedia";
     const html = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Account Deleted</title>
+        <title>Cuenta Eliminada</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -613,15 +646,15 @@ exports.deleteAccount = async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Account Deleted</h1>
+            <h1>Cuenta Eliminada</h1>
           </div>
           <div class="content">
-            <p>Hello <strong>${user.nombre}</strong>,</p>
-            <p>We're sorry to see you go. Your account has been deleted from <strong>RedMedia</strong>. If this was a mistake, please contact us immediately.</p>
-            <p>Thank you for being part of our community.</p>
+            <p>Hola <strong>${user.nombre}</strong>,</p>
+            <p>Lamentamos verte partir. Tu cuenta ha sido eliminada de <strong>RedMedia</strong>. Si esto fue un error, por favor contáctanos de inmediato.</p>
+            <p>Gracias por haber sido parte de nuestra comunidad.</p>
           </div>
           <div class="footer">
-            <p>This email was sent from Red Media App.</p>
+            <p>Este correo fue enviado desde Red Media App.</p>
           </div>
         </div>
       </body>
@@ -630,29 +663,32 @@ exports.deleteAccount = async (req, res) => {
 
     await mailSender(user.email, subject, html);
 
-    return res.status(200).json({ message: "Account deleted successfully" });
+    return res.status(200).json({ message: "Cuenta eliminada exitosamente" });
   } catch (error) {
-    console.error("Error in deleteAccount:", error);
-    return res.status(500).json({ message: "Error deleting the account" });
+    console.error("Error en deleteAccount:", error);
+    return res.status(500).json({ message: "Error al eliminar la cuenta" });
   }
 };
 
+// Ruta para obtener los posts favoritos de un usuario
 exports.getFavoritePosts = async (req, res) => {
-  const userId = req.userId;
+  const userId = req.userId; // ID del usuario desde el token
 
   try {
+    // Llamamos al servicio para obtener los posts favoritos
     const favoritePosts = await UserService.getFavoritePosts(userId);
 
+    // Retornamos los posts favoritos
     return res.status(200).json({
       status: 200,
       data: favoritePosts,
-      message: "Favorite posts obtained successfully",
+      message: "Posts favoritos obtenidos exitosamente",
     });
   } catch (error) {
-    console.error("Error obtaining favorite posts:", error);
+    console.error("Error al obtener los posts favoritos:", error);
     return res.status(500).json({
       status: 500,
-      message: "Error obtaining favorite posts",
+      message: "Error al obtener los posts favoritos",
     });
   }
 };
