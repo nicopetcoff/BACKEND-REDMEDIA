@@ -137,22 +137,12 @@ exports.handleInteractions = async (req, res) => {
 
     if (action === "like") {
       updatedPost = await PostsService.toggleLike(postId, username);
-      await PostsService.handleNotification(userId, username, postId, action);
 
-      return res.status(200).json({
-        status: 200,
-        data: updatedPost,
-        message: "'Like' interaction processed",
-      });
+      
     } else if (action === "comment") {
       updatedPost = await PostsService.addComment(postId, username, comment);
-      await PostsService.handleNotification(userId, username, postId, action, comment);
 
-      return res.status(200).json({
-        status: 200,
-        data: updatedPost,
-        message: "Comment added",
-      });
+      
     } else {
       return res.status(400).json({
         status: 400,

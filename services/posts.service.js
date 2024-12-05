@@ -6,6 +6,7 @@ const path = require("path");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 const User = require("../models/User.model");
+const Post = require("../models/Post.model");
 
 exports.getAllPosts = async (req, res) => {
   try {
@@ -116,66 +117,78 @@ exports.publishPost = async (req, res) => {
   }
 };
 
-exports.handleInteractions = async (req, res) => {
+exports.toggleLike = async function (postId, username) {
   try {
-    const postId = req.params.id;
-    const { action, comment } = req.body;
-    const userId = req.userId;
+    const post = await Post.findById(postId);
+    if (!post) throw new Error("Post no encontrado");
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Authenticated user not found" });
-    }
-    const username = user.usernickname;
-
-    const post = await PostsService.getPostById(postId);
-    if (!post) {
-      return res.status(404).json({ status: 404, message: "Post not found" });
-    }
-
-    let updatedPost;
-
-    if (action === "like") {
-      updatedPost = await PostsService.toggleLike(postId, username);
-      await PostsService.handleNotification(userId, username, postId, action);
-
-      return res.status(200).json({
-        status: 200,
-        data: updatedPost,
-        message: "'Like' interaction processed",
-      });
-    } else if (action === "comment") {
-      updatedPost = await PostsService.addComment(postId, username, comment);
-      await PostsService.handleNotification(userId, username, postId, action, comment);
-
-      return res.status(200).json({
-        status: 200,
-        data: updatedPost,
-        message: "Comment added",
-      });
+    if (post.likes.includes(username)) {
+      // Si ya le dio like, lo elimina
+      post.likes = post.likes.filter((user) => user !== username);
     } else {
-      return res.status(400).json({
-        status: 400,
-        message: "Invalid action. Use 'like' or 'comment'.",
-      });
+      // Si no le dio like, lo agrega
+      post.likes.push(username);
+      await this.handleNotification( username, postId, "Trending");
     }
 
-    await UserService.calculateUserLevel(username);
-
-    return res.status(200).json({
-      status: 200,
-      data: updatedPost,
-      message: "Interaction processed successfully",
-    });
+    const updatedPost = await post.save();
+    return updatedPost.toObject();
   } catch (error) {
-    console.error("Error in handleInteractions:", error);
-    return res.status(500).json({
-      status: 500,
-      message: "Error processing the interaction.",
-    });
+    throw new Error("Error al alternar 'me gusta': " + error.message);
   }
 };
 
+exports.addComment = async function (postId, username, comment) {
+  try {
+    const post = await Post.findById(postId);
+    if (!post) throw new Error("Post no encontrado");
+
+    // Agregar el comentario al array de comentarios del post
+    post.comments.push({ username, comment });
+    await this.handleNotification( username, postId, "Comment",comment);
+
+    const updatedPost = await post.save();
+    return updatedPost.toObject();
+  } catch (error) {
+    throw new Error("Error al agregar comentario: " + error.message);
+  }
+};
+
+exports.handleNotification = async function ( username,postId,action,comment=null) {
+  try {
+    //crea la notificacion
+    let text="Like on your post";
+    if(action==="comment")
+      text=`Comment on your post: "${comment}"`;
+
+
+      const notification = {
+        type: action,
+        user: username,
+        text: text,
+        time: Date.now(),
+        post:postId
+      };
+      const postOwnerNick=await this.getPostOwner(postId); 
+      const postOwnerId=await this.getUserByNickname(postOwnerNick);
+      
+      const doned=await User.findByIdAndUpdate(postOwnerId, {
+        $push: { notificaciones: notification },
+      }, { new: true });
+      
+  } catch (error) {
+    throw new Error(`Error al ${action} al usuario: ` + error.message);
+  }
+};
+
+exports.getUserByNickname = async function (usernickname) {
+  try {
+    const user = await User.findOne({usernickname: usernickname });
+    return user._id;
+  }catch (error) {
+    throw new Error("Error al obtener el usuario desde la base de datos");
+  }
+}
 exports.getPostsFromFollowing = async (req, res) => {
   try {
     const posts = await PostsService.getPostsFromFollowing(req.userId);
