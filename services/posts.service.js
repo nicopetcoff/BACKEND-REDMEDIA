@@ -1,222 +1,229 @@
-// services/posts.service.js
-const Post = require("../models/post.model");
+const PostsService = require("../services/posts.service");
+const UserService = require("../services/user.service");
+const { uploadImage, uploadVideo } = require("../services/cloudinary");
+const fs = require("fs").promises;
+const path = require("path");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 const User = require("../models/User.model");
 
-exports.getAllPosts = async function () {
+exports.getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
-      .sort({ createdAt: -1 }) // -1 para orden descendente (más reciente primero)
-      .lean(); // Para mejor performance
-    return posts;
-  } catch (error) {
-    throw Error("Error al obtener los posts desde la base de datos");
-  }
-};
-
-exports.getPostsByUser = async function (userId) {
-  try {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new Error("Usuario no encontrado");
-    }
-
-    const posts = await Post.find({ user: user.usernickname })
-      .sort({ createdAt: -1 }) // Orden descendente por fecha
-      .lean();
-
-    return posts;
-  } catch (error) {
-    console.error("Error en getPostsByUser:", error);
-    throw new Error("Error al obtener los posts del usuario");
-  }
-};
-
-exports.getPostById = async function (id) {
-  try {
-    const post = await Post.findById(id).lean();
-    return post;
-  } catch (error) {
-    throw Error("Error al obtener el post desde la base de datos");
-  }
-};
-
-exports.crearPost = async function (post) {
-  // Crea una instancia de Post con los datos recibidos
-  const nuevoPost = new Post({
-    title: post.title,
-    description: post.description,
-    location: post.location,
-    user: post.user,
-    userAvatar: post.userAvatar,
-    image: post.images || [], // Si no hay imágenes, se guarda un array vacío
-    videos: post.videos || [], // Si no hay videos, se guarda un array vacío
-  });
-
-  try {
-    // Guardamos el nuevo post en MongoDB
-    const savedPost = await nuevoPost.save();
-
-    // Retornamos el post guardado
-    return savedPost;
-  } catch (error) {
-    console.error("Error al guardar el post en la base de datos:", error);
-    throw new Error("Error al crear el post en la base de datos");
-  }
-};
-
-exports.toggleLike = async function (postId, username) {
-  try {
-    const post = await Post.findById(postId);
-    if (!post) throw new Error("Post no encontrado");
-
-    if (post.likes.includes(username)) {
-      // Si ya le dio like, lo elimina
-      post.likes = post.likes.filter((user) => user !== username);
-    } else {
-      // Si no le dio like, lo agrega
-      post.likes.push(username);
-      await this.handleNotification( username, postId, "Trending");
-    }
-
-    const updatedPost = await post.save();
-    return updatedPost.toObject();
-  } catch (error) {
-    throw new Error("Error al alternar 'me gusta': " + error.message);
-  }
-};
-
-exports.addComment = async function (postId, username, comment) {
-  try {
-    const post = await Post.findById(postId);
-    if (!post) throw new Error("Post no encontrado");
-
-    // Agregar el comentario al array de comentarios del post
-    post.comments.push({ username, comment });
-
-    const updatedPost = await post.save();
-    return updatedPost.toObject();
-  } catch (error) {
-    throw new Error("Error al agregar comentario: " + error.message);
-  }
-};
-
-exports.handleNotification = async function ( username,postId,action,comment=null) {
-  try {
-    //crea la notificacion
-    let text="Like on your post";
-    if(action==="comment")
-      text=`Comment on your post: "${comment}"`;
-
-
-      const notification = {
-        type: action,
-        user: username,
-        text: text,
-        time: Date.now(),
-        post:postId
-      };
-      const postOwnerNick=await this.getPostOwner(postId); 
-      const postOwnerId=await this.getUserByNickname(postOwnerNick);
-      
-      const doned=await User.findByIdAndUpdate(postOwnerId, {
-        $push: { notificaciones: notification },
-      }, { new: true });
-      
-  } catch (error) {
-    throw new Error(`Error al ${action} al usuario: ` + error.message);
-  }
-};
-
-exports.getUserByNickname = async function (usernickname) {
-  try {
-    const user = await User.findOne({usernickname: usernickname });
-    return user._id;
-  }catch (error) {
-    throw new Error("Error al obtener el usuario desde la base de datos");
-  }
-}
-
-exports.getPostOwner = async function (postId) {
-  try {
-    const post = await Post.findById(postId);
-    if (!post) throw new Error("Post no encontrado");
-    return post.user
-  }catch (error) {
-    throw new Error("Error al obtener el dueño del post: " + error.message);
-  }
-}
-
-
-exports.getPostsFromFollowing = async function (userId) {
-  try {
-    // Obtener el usuario actual y sus following
-    const currentUser = await User.findById(userId);
-    if (!currentUser) {
-      throw new Error("Usuario no encontrado");
-    }
-
-    // Obtener los documentos de usuarios seguidos
-    const followedUsers = await User.find(
-      {
-        _id: { $in: currentUser.following },
-      },
-      "usernickname"
-    );
-
-    // Obtener todos los usernicknames (incluido el del usuario actual)
-    const usernames = [
-      currentUser.usernickname,
-      ...followedUsers.map((user) => user.usernickname),
-    ];
-
-    // Buscar posts tanto del usuario como de los que sigue
-    const posts = await Post.find({
-      user: { $in: usernames },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return posts;
-  } catch (error) {
-    console.error("Error en getPostsFromFollowing:", error);
-    throw new Error("Error al obtener los posts de los usuarios seguidos");
-  }
-};
-
-exports.getUserPostsAndCommentsCount = async function (usernickname) {
-  try {
-    // Buscar los posts del usuario
-    const posts = await Post.find({ user: usernickname });
-
-    // Si no hay posts, devolvemos un conteo de 0
-    if (!posts || posts.length === 0) {
-      return { postCount: 0, commentCount: 0 };
-    }
-
-    let postCount = posts.length;
-    let commentCount = 0;
-
-    // Contamos los comentarios
-    posts.forEach(post => {
-      commentCount += post.comments.length;
+    const posts = await PostsService.getAllPosts();
+    res.status(200).json({
+      status: 200,
+      data: posts,
+      message: "Posts obtained successfully",
     });
-
-    return { postCount, commentCount };
   } catch (error) {
-    console.error("Error al obtener los posts y comentarios del usuario:", error);
-    throw new Error("Error al obtener los posts y comentarios del usuario");
+    console.error("Error getting posts:", error);
+    res.status(400).json({
+      status: 400,
+      message: error.message || "Error getting posts",
+    });
   }
 };
 
-exports.getUserById = async function (userId) {
+exports.getUserPosts = async (req, res) => {
   try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: 401,
+        message: "User not authenticated",
+      });
+    }
+
+    const posts = await PostsService.getPostsByUser(userId);
+
+    res.status(200).json({
+      status: 200,
+      data: posts || [],
+      message: "User's posts obtained successfully",
+    });
+  } catch (error) {
+    console.error("Error in getUserPosts:", error);
+    res.status(500).json({
+      status: 500,
+      message: "Error obtaining user's posts",
+    });
+  }
+};
+
+exports.getPostById = async (req, res) => {
+  try {
+    console.log("BACKK", req.params.id);
+    const post = await PostsService.getPostById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({
+        status: 404,
+        message: "Post not found",
+      });
+    }
+    res.status(200).json({
+      status: 200,
+      data: post,
+      message: "Post obtained successfully",
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 400,
+      message: error.message,
+    });
+  }
+};
+
+exports.publishPost = async (req, res) => {
+  try {
+    const imageUrls = [];
+    const videoUrls = [];
+
+    if (req.files && req.files.images) {
+      for (const image of req.files.images) {
+        const imageUrl = await uploadImage(image.buffer);
+        imageUrls.push(imageUrl);
+      }
+    }
+
+    if (req.files && req.files.videos) {
+      for (const video of req.files.videos) {
+        const videoUrl = await uploadVideo(video.buffer);
+        videoUrls.push(videoUrl);
+      }
+    }
+
+    const postData = {
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      user: req.body.user,
+      userAvatar: req.body.userAvatar,
+      images: imageUrls,
+      videos: videoUrls,
+    };
+
+    const newPost = await PostsService.crearPost(postData);
+
+    const userNickname = req.body.user;
+    await UserService.calculateUserLevel(userNickname);
+
+    res.status(201).json(newPost);
+  } catch (error) {
+    console.error("Error publishing post:", error);
+    res.status(500).json({ error: "There was an error creating the post" });
+  }
+};
+
+exports.handleInteractions = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { action, comment } = req.body;
+    const userId = req.userId;
+
     const user = await User.findById(userId);
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      return res.status(404).json({ message: "Authenticated user not found" });
     }
-    return user;
+    const username = user.usernickname;
+
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res.status(404).json({ status: 404, message: "Post not found" });
+    }
+
+    let updatedPost;
+
+    if (action === "like") {
+      updatedPost = await PostsService.toggleLike(postId, username);
+      await PostsService.handleNotification(userId, username, postId, action);
+
+      return res.status(200).json({
+        status: 200,
+        data: updatedPost,
+        message: "'Like' interaction processed",
+      });
+    } else if (action === "comment") {
+      updatedPost = await PostsService.addComment(postId, username, comment);
+      await PostsService.handleNotification(userId, username, postId, action, comment);
+
+      return res.status(200).json({
+        status: 200,
+        data: updatedPost,
+        message: "Comment added",
+      });
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid action. Use 'like' or 'comment'.",
+      });
+    }
+
+    await UserService.calculateUserLevel(username);
+
+    return res.status(200).json({
+      status: 200,
+      data: updatedPost,
+      message: "Interaction processed successfully",
+    });
   } catch (error) {
-    throw new Error("Error al obtener el usuario por ID: " + error.message);
+    console.error("Error in handleInteractions:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Error processing the interaction.",
+    });
+  }
+};
+
+exports.getPostsFromFollowing = async (req, res) => {
+  try {
+    const posts = await PostsService.getPostsFromFollowing(req.userId);
+
+    res.status(200).json({
+      status: 200,
+      data: posts,
+      message: "Posts obtained successfully",
+    });
+  } catch (error) {
+    console.error("Error in controller:", error);
+    res.status(400).json({
+      status: 400,
+      message: error.message,
+    });
+  }
+};
+
+exports.toggleFavoritePost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.userId;
+
+    const post = await PostsService.getPostById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isFavorite = user.favoritePosts.includes(postId);
+
+    if (isFavorite) {
+      user.favoritePosts = user.favoritePosts.filter(
+        (id) => id.toString() !== postId.toString()
+      );
+      await user.save();
+      return res.status(200).json({ message: "Post removed from favorites" });
+    } else {
+      user.favoritePosts.push(postId);
+      await user.save();
+      return res.status(200).json({ message: "Post added to favorites" });
+    }
+  } catch (error) {
+    console.error("Error handling favorite:", error);
+    res.status(500).json({ message: "Error handling post favorite" });
   }
 };
