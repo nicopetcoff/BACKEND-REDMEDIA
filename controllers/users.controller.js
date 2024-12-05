@@ -370,7 +370,8 @@ exports.getUserData = async function (req, res) {
         bio: user.bio,
         avatar: user.avatar,
         coverImage: user.coverImage,
-        level: user.level, // Devolvemos el nivel calculado previamente
+        level: user.level,
+        genero: user.genero,
       },
     });
   } catch (error) {
@@ -409,7 +410,7 @@ exports.updateUserAttributes = async function (req, res) {
     let updateData = { ...req.body };
 
     // Lista de campos permitidos para actualizar
-    const allowedFields = ["bio", "avatar", "coverImage", "nombre", "apellido"];
+    const allowedFields = ["bio", "avatar", "coverImage", "nombre", "apellido", "genero"];
 
     // Si hay archivos, procesarlos primero
     if (req.files) {
@@ -453,6 +454,7 @@ exports.updateUserAttributes = async function (req, res) {
         bio: updatedUser.bio,
         avatar: updatedUser.avatar,
         coverImage: updatedUser.coverImage,
+        genero: updatedUser.genero,
       },
       message: "Usuario actualizado correctamente",
     });
