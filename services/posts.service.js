@@ -5,11 +5,11 @@ const User = require("../models/User.model");
 exports.getAllPosts = async function () {
   try {
     const posts = await Post.find()
-      .sort({ createdAt: -1 }) // -1 para orden descendente (más reciente primero)
-      .lean(); // Para mejor performance
+      .sort({ createdAt: -1 }) // -1 for descending order (most recent first)
+      .lean(); // For better performance
     return posts;
   } catch (error) {
-    throw Error("Error al obtener los posts desde la base de datos");
+    throw Error("Error obtaining posts from the database");
   }
 };
 
@@ -18,17 +18,17 @@ exports.getPostsByUser = async function (userId) {
     const user = await User.findById(userId);
 
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
     const posts = await Post.find({ user: user.usernickname })
-      .sort({ createdAt: -1 }) // Orden descendente por fecha
+      .sort({ createdAt: -1 }) // Descending order by date
       .lean();
 
     return posts;
   } catch (error) {
-    console.error("Error en getPostsByUser:", error);
-    throw new Error("Error al obtener los posts del usuario");
+    console.error("Error in getPostsByUser:", error);
+    throw new Error("Error obtaining the user's posts");
   }
 };
 
@@ -37,66 +37,66 @@ exports.getPostById = async function (id) {
     const post = await Post.findById(id).lean();
     return post;
   } catch (error) {
-    throw Error("Error al obtener el post desde la base de datos");
+    throw Error("Error obtaining the post from the database");
   }
 };
 
 exports.crearPost = async function (post) {
-  // Crea una instancia de Post con los datos recibidos
+  // Create a Post instance with the received data
   const nuevoPost = new Post({
     title: post.title,
     description: post.description,
     location: post.location,
     user: post.user,
     userAvatar: post.userAvatar,
-    image: post.images || [], // Si no hay imágenes, se guarda un array vacío
-    videos: post.videos || [], // Si no hay videos, se guarda un array vacío
+    image: post.images || [], // If no images, store an empty array
+    videos: post.videos || [], // If no videos, store an empty array
   });
 
   try {
-    // Guardamos el nuevo post en MongoDB
+    // Save the new post in MongoDB
     const savedPost = await nuevoPost.save();
 
-    // Retornamos el post guardado
+    // Return the saved post
     return savedPost;
   } catch (error) {
-    console.error("Error al guardar el post en la base de datos:", error);
-    throw new Error("Error al crear el post en la base de datos");
+    console.error("Error saving the post to the database:", error);
+    throw new Error("Error creating the post in the database");
   }
 };
 
 exports.toggleLike = async function (postId, username) {
   try {
     const post = await Post.findById(postId);
-    if (!post) throw new Error("Post no encontrado");
+    if (!post) throw new Error("Post not found");
 
     if (post.likes.includes(username)) {
-      // Si ya le dio like, lo elimina
+      // If already liked, remove the like
       post.likes = post.likes.filter((user) => user !== username);
     } else {
-      // Si no le dio like, lo agrega
+      // If not liked, add the like
       post.likes.push(username);
     }
 
     const updatedPost = await post.save();
     return updatedPost.toObject();
   } catch (error) {
-    throw new Error("Error al alternar 'me gusta': " + error.message);
+    throw new Error("Error toggling 'like': " + error.message);
   }
 };
 
 exports.addComment = async function (postId, username, comment) {
   try {
     const post = await Post.findById(postId);
-    if (!post) throw new Error("Post no encontrado");
+    if (!post) throw new Error("Post not found");
 
-    // Agregar el comentario al array de comentarios del post
+    // Add the comment to the post's comments array
     post.comments.push({ username, comment });
 
     const updatedPost = await post.save();
     return updatedPost.toObject();
   } catch (error) {
-    throw new Error("Error al agregar comentario: " + error.message);
+    throw new Error("Error adding comment: " + error.message);
   }
 };
 
@@ -107,13 +107,13 @@ exports.handleNotification = async function (userId, postOwner, postId, action, 
       text = `Comment on your post: "${comment}"`;
     }
 
-    // Obtiene el postOwnerId
-    const postOwnerId = await this.getUserByNickname(postOwner);  // El uso de `this` aquí es incorrecto
+    // Get the postOwnerId
+    const postOwnerId = await this.getUserByNickname(postOwner);  // The use of `this` here is incorrect
 
     console.log("postOwnerId: ", postOwnerId, "text: ", text);
 
-    // Cambia a este método directamente
-    const user = await User.findById(userId);  // Usamos `User` para obtener el ID del usuario
+    // Change to this method directly
+    const user = await User.findById(userId);  // We use `User` to get the user's ID
     const { usernickname } = user;
 
     const notification = {
@@ -124,34 +124,34 @@ exports.handleNotification = async function (userId, postOwner, postId, action, 
       postId: postId,
     };
 
-    // Aquí se actualiza el postOwner con la notificación
+    // Update the postOwner with the notification
     await User.findByIdAndUpdate(postOwnerId, {
       $push: { notificaciones: notification },
     }, { new: true });
 
   } catch (error) {
-    throw new Error(`Error al ${action} al usuario: ` + error.message);
+    throw new Error(`Error handling ${action} for the user: ` + error.message);
   }
 };
 
 exports.getUserByNickname = async function (usernickname) {
   try {
-    const user = await User.findOne({usernickname: usernickname });
+    const user = await User.findOne({ usernickname: usernickname });
     return user._id;
-  }catch (error) {
-    throw new Error("Error al obtener el usuario desde la base de datos");
+  } catch (error) {
+    throw new Error("Error obtaining the user from the database");
   }
 }
 
 exports.getPostsFromFollowing = async function (userId) {
   try {
-    // Obtener el usuario actual y sus following
+    // Get the current user and their following
     const currentUser = await User.findById(userId);
     if (!currentUser) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
-    // Obtener los documentos de usuarios seguidos
+    // Get the followed users' documents
     const followedUsers = await User.find(
       {
         _id: { $in: currentUser.following },
@@ -159,13 +159,13 @@ exports.getPostsFromFollowing = async function (userId) {
       "usernickname"
     );
 
-    // Obtener todos los usernicknames (incluido el del usuario actual)
+    // Get all usernicknames (including the current user's)
     const usernames = [
       currentUser.usernickname,
       ...followedUsers.map((user) => user.usernickname),
     ];
 
-    // Buscar posts tanto del usuario como de los que sigue
+    // Find posts from both the user and the followed users
     const posts = await Post.find({
       user: { $in: usernames },
     })
@@ -174,17 +174,17 @@ exports.getPostsFromFollowing = async function (userId) {
 
     return posts;
   } catch (error) {
-    console.error("Error en getPostsFromFollowing:", error);
-    throw new Error("Error al obtener los posts de los usuarios seguidos");
+    console.error("Error in getPostsFromFollowing:", error);
+    throw new Error("Error obtaining posts from followed users");
   }
 };
 
 exports.getUserPostsAndCommentsCount = async function (usernickname) {
   try {
-    // Buscar los posts del usuario
+    // Find the user's posts
     const posts = await Post.find({ user: usernickname });
 
-    // Si no hay posts, devolvemos un conteo de 0
+    // If there are no posts, return a count of 0
     if (!posts || posts.length === 0) {
       return { postCount: 0, commentCount: 0 };
     }
@@ -192,15 +192,15 @@ exports.getUserPostsAndCommentsCount = async function (usernickname) {
     let postCount = posts.length;
     let commentCount = 0;
 
-    // Contamos los comentarios
+    // Count the comments
     posts.forEach(post => {
       commentCount += post.comments.length;
     });
 
     return { postCount, commentCount };
   } catch (error) {
-    console.error("Error al obtener los posts y comentarios del usuario:", error);
-    throw new Error("Error al obtener los posts y comentarios del usuario");
+    console.error("Error obtaining user's posts and comments:", error);
+    throw new Error("Error obtaining user's posts and comments");
   }
 };
 
@@ -208,10 +208,10 @@ exports.getUserById = async function (userId) {
   try {
     const user = await User.findById(userId);
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
     return user;
   } catch (error) {
-    throw new Error("Error al obtener el usuario por ID: " + error.message);
+    throw new Error("Error obtaining user by ID: " + error.message);
   }
 };
