@@ -9,16 +9,16 @@ const sendMail = async function (req, res) {
 
   try {
     if (!email) {
-      return res.status(400).json({ message: "Falta el parámetro: to" });
+      return res.status(400).json({ message: "Missing parameter: to" });
     }
 
-    const subject = "Este es un mail de prueba";
-    const text = "Este es el contenido predeterminado de prueba del correo.";
+    const subject = "This is a test email";
+    const text = "This is the default test content of the email.";
 
     await mailSender(email, subject, text);
-    return res.status(200).json({ message: "Correo enviado con éxito" });
+    return res.status(200).json({ message: "Email sent successfully" });
   } catch (err) {
-    return res.status(500).json({ message: "Error al enviar el correo" });
+    return res.status(500).json({ message: "Error sending the email" });
   }
 };
 
@@ -28,7 +28,7 @@ const sendPasswordResetEmail = async (req, res) => {
   try {
     const user = await UserService.getUserByEmail(email);
     if (!user) {
-      throw { message: "E-mail incorrecto" };
+      throw { message: "Incorrect email" };
     }
 
     const resetToken = jwt.sign(
@@ -44,14 +44,14 @@ const sendPasswordResetEmail = async (req, res) => {
     );
 
     const resetLink = `https://redmedia.vercel.app/reset-password/${resetToken}`;
-    const subject = "Restablecimiento de contraseña";
+    const subject = "Password Reset";
     const html = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Restablecimiento de Contraseña</title>
+        <title>Password Reset</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -110,16 +110,16 @@ const sendPasswordResetEmail = async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Restablecimiento de Contraseña</h1>
+            <h1>Password Reset</h1>
           </div>
           <div class="content">
-            <p>Hola <strong>${user.nombre}</strong>,</p>
-            <p>Haz clic en el botón de abajo para restablecer tu contraseña:</p>
-            <a href="${resetLink}" class="btn">Restablecer Contraseña</a>
-            <p>Este enlace expirará en una hora. Si no solicitaste este cambio, puedes ignorar este correo.</p>
+            <p>Hello <strong>${user.nombre}</strong>,</p>
+            <p>Click the button below to reset your password:</p>
+            <a href="${resetLink}" class="btn">Reset Password</a>
+            <p>This link will expire in one hour. If you didn't request this change, you can ignore this email.</p>
           </div>
           <div class="footer">
-            <p>Este correo fue enviado desde Red Media App.</p>
+            <p>This email was sent from Red Media App.</p>
           </div>
         </div>
       </body>
@@ -128,42 +128,43 @@ const sendPasswordResetEmail = async (req, res) => {
 
     await mailSender(email, subject, html);
 
-    res.status(200).json({ message: "Se envió un correo de restablecimiento" });
+    res.status(200).json({ message: "A reset email was sent" });
   } catch (error) {
-    console.error("Error al enviar correo:", error);
+    console.error("Error sending email:", error);
     res.status(500).json({ message: error.message });
   }
 };
-// Controlador para restablecer la contraseña del usuario
+
+// Controller to reset the user's password
 
 const resetPassword = async (req, res) => {
   const { resetToken, newPassword } = req.body;
 
   try {
-    // Verificar y decodificar el token
+    // Verify and decode the token
     const decoded = jwt.verify(resetToken, process.env.SECRET);
 
     const userId = decoded.id;
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Actualizar la contraseña
+    // Update the password
     const hashedPassword = bcrypt.hashSync(newPassword, 8);
     await User.findByIdAndUpdate(userId, { password: hashedPassword });
 
-    res.json({ message: "Contraseña actualizada exitosamente" });
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "El token ha expirado" });
+      return res.status(401).json({ message: "Token has expired" });
     } else {
       console.error(
-        "Error al procesar la solicitud de cambio de contraseña:",
+        "Error processing password change request:",
         error
-      ); // Log de error genérico
-      res.status(500).json({ message: "Error al procesar la solicitud" });
+      );
+      res.status(500).json({ message: "Error processing the request" });
     }
   }
 };

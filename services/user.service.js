@@ -1,37 +1,37 @@
 var User = require("../models/User.model");
 
-const PostsService = require("./posts.service"); // Importar PostsService
+const PostsService = require("./posts.service"); // Import PostsService
 
 _this = this;
 
-// Crear un nuevo usuario
+// Create a new user
 exports.createUser = async function (userData) {
   try {
     var newUser = new User(userData);
     var savedUser = await newUser.save();
     return savedUser;
   } catch (e) {
-    throw "Error al crear el usuario";
+    throw "Error creating user";
   }
 };
 
-// Verificar si el email ya existe
+// Verify if the email already exists
 exports.verificarEmailExistente = async function (email) {
   try {
     var existingUser = await User.findOne({ email: email });
     return existingUser !== null;
   } catch (e) {
-    throw Error("Error al verificar el email");
+    throw Error("Error verifying email");
   }
 };
 
-//verificar id de usuario
+// Verify user ID
 exports.verificarIdExistente = async function (userData) {
   try {
     var existingUser = await User.findOne({ email: userData.email });
     return existingUser.userId === userData.userId;
   } catch (e) {
-    throw Error("Error al loguearse");
+    throw Error("Error logging in");
   }
 };
 
@@ -40,7 +40,7 @@ exports.verificarNickExistente = async function (nick) {
     var existingNick = await User.findOne({ usernickname: nick });
     return existingNick !== null;
   } catch (e) {
-    throw Error("Error al verificar el nickname");
+    throw Error("Error verifying nickname");
   }
 };
 
@@ -49,18 +49,16 @@ exports.getUserByEmail = async function (email) {
     var user = await User.findOne({ email: email });
     return user;
   } catch (e) {
-    throw Error("Error al buscar el usuario por email");
+    throw Error("Error fetching user by email");
   }
 };
 
 exports.getUserNotificaciones = async function (userId) {
   try {
-    const notificicaciones = await User.findById(userId).select(
-      "notificaciones"
-    );
-    return notificicaciones;
+    const notifications = await User.findById(userId).select("notificaciones");
+    return notifications;
   } catch (e) {
-    throw Error("Error al obtener las notificaciones del usuario");
+    throw Error("Error fetching user notifications");
   }
 };
 
@@ -70,34 +68,34 @@ exports.actualizarResetToken = async function (
   resetTokenExpires
 ) {
   try {
-    // Actualizar el usuario con el nuevo token y su expiración
+    // Update the user with the new token and expiration
     const updatedUser = await User.findOneAndUpdate(
-      { email: email }, // Buscar el usuario por email
+      { email: email }, // Find user by email
       {
-        resetToken: resetToken, // Establecer el nuevo token
-        resetTokenExpires: resetTokenExpires, // Establecer la nueva fecha de expiración
+        resetToken: resetToken, // Set the new token
+        resetTokenExpires: resetTokenExpires, // Set the new expiration date
       },
-      { new: true } // Retornar el documento actualizado
+      { new: true } // Return the updated document
     );
 
     if (!updatedUser) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
-    return updatedUser; // Retornar el usuario actualizado
+    return updatedUser; // Return the updated user
   } catch (error) {
     throw new Error(
-      "Error al actualizar el token de restablecimiento: " + error.message
+      "Error updating reset token: " + error.message
     );
   }
 };
 
 exports.getUserById = async function (userId) {
   try {
-    var user = await User.findById(userId); // Usar Mongoose para buscar el usuario por ID
+    var user = await User.findById(userId); // Use Mongoose to find the user by ID
     return user;
   } catch (e) {
-    throw new Error("Error al obtener el usuario por ID: " + e.message);
+    throw new Error("Error fetching user by ID: " + e.message);
   }
 };
 
@@ -106,12 +104,12 @@ exports.getUsers = async () => {
     const users = await User.find(
       {},
       { password: 0, resetToken: 0, resetTokenExpires: 0 }
-    ).lean(); // Eliminamos el cálculo de nivel aquí
+    ).lean(); // Exclude level calculation here
 
     return users;
   } catch (error) {
-    console.error("Error al obtener los usuarios:", error);
-    throw new Error("Error al obtener los usuarios");
+    console.error("Error fetching users:", error);
+    throw new Error("Error fetching users");
   }
 };
 
@@ -124,12 +122,12 @@ exports.updateUserAttributes = async function (userId, updateData) {
     );
 
     if (!updatedUser) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
     return updatedUser;
   } catch (error) {
-    throw new Error("Error al actualizar el usuario: " + error.message);
+    throw new Error("Error updating user: " + error.message);
   }
 };
 
@@ -137,7 +135,7 @@ exports.addFollow = async (userId, targetUserId) => {
   try {
     const user = await User.findByIdAndUpdate(
       userId,
-      { $addToSet: { following: targetUserId } }, // Evita duplicados
+      { $addToSet: { following: targetUserId } }, // Avoid duplicates
       { new: true }
     );
 
@@ -146,8 +144,9 @@ exports.addFollow = async (userId, targetUserId) => {
       { $addToSet: { followers: userId } },
       { new: true }
     );
-    //crea la notificacion
-    const {usernickname}= await this.getUserById(userId);
+
+    // Create notification
+    const { usernickname } = await this.getUserById(userId);
     const notification = {
       type: "Followed",
       user: usernickname,
@@ -155,15 +154,18 @@ exports.addFollow = async (userId, targetUserId) => {
       time: Date.now(),
     };
 
-    //agrega la notificacion
-    
-    await User.findByIdAndUpdate(targetUserId, {
-      $push: { notificaciones: notification },
-    }, { new: true });
+    // Add notification
+    await User.findByIdAndUpdate(
+      targetUserId,
+      {
+        $push: { notificaciones: notification },
+      },
+      { new: true }
+    );
 
     return user;
   } catch (error) {
-    throw new Error("Error al seguir al usuario: " + error.message);
+    throw new Error("Error following user: " + error.message);
   }
 };
 
@@ -171,7 +173,7 @@ exports.removeFollow = async (userId, targetUserId) => {
   try {
     const user = await User.findByIdAndUpdate(
       userId,
-      { $pull: { following: targetUserId } }, // Remueve el ID de la lista
+      { $pull: { following: targetUserId } }, // Remove the ID from the list
       { new: true }
     );
 
@@ -183,7 +185,7 @@ exports.removeFollow = async (userId, targetUserId) => {
 
     return user;
   } catch (error) {
-    throw new Error("Error al dejar de seguir al usuario: " + error.message);
+    throw new Error("Error unfollowing user: " + error.message);
   }
 };
 
@@ -199,7 +201,7 @@ exports.searchUsers = async (query) => {
         ],
       },
       {
-        password: 0, // Excluye la contraseña de los resultados
+        password: 0, // Exclude the password from the results
         resetToken: 0,
         resetTokenExpires: 0,
       }
@@ -207,8 +209,8 @@ exports.searchUsers = async (query) => {
 
     return users;
   } catch (error) {
-    console.error("Error en searchUsers (service):", error);
-    throw new Error("Error al realizar la búsqueda de usuarios");
+    console.error("Error in searchUsers (service):", error);
+    throw new Error("Error searching users");
   }
 };
 
@@ -221,78 +223,77 @@ exports.confirmUser = async function (userId) {
     );
 
     if (!updatedUser) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
     return updatedUser;
   } catch (error) {
-    throw new Error("Error al confirmar el usuario: " + error.message);
+    throw new Error("Error confirming user: " + error.message);
   }
 };
 exports.deleteUser = async (userId) => {
   try {
-    await User.findByIdAndDelete(userId); // Usar Mongoose para eliminar el usuario por ID
+    await User.findByIdAndDelete(userId); // Use Mongoose to delete the user by ID
   } catch (error) {
-    throw new Error("Error al eliminar el usuario: " + error.message);
+    throw new Error("Error deleting user: " + error.message);
   }
 };
 
-// Método para obtener los posts favoritos de un usuario
 exports.getFavoritePosts = async function (userId) {
   try {
-    // Buscar al usuario por su ID y poblar el campo favoritePosts con los detalles completos de los posts
+    // Find the user by their ID and populate the favoritePosts field with full post details
     const user = await User.findById(userId).populate("favoritePosts");
 
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
-    // Devolver los posts favoritos
+    // Return the favorite posts
     return user.favoritePosts;
   } catch (error) {
-    console.error("Error al obtener los posts favoritos:", error);
-    throw new Error("Error al obtener los posts favoritos");
+    console.error("Error fetching favorite posts:", error);
+    throw new Error("Error fetching favorite posts");
   }
 };
 
-// Dentro del servicio de usuarios (UserService)
-
 exports.calculateUserLevel = async function (usernickname) {
   try {
-    // Obtener la cantidad de posts y comentarios del usuario
+    // Get the number of posts and comments by the user
     const { postCount, commentCount } =
       await PostsService.getUserPostsAndCommentsCount(usernickname);
 
-    // Inicializar el nivel
+    // Initialize the level
     let level = 1;
 
-    // Calcular el nivel según los criterios
+    // Calculate the level based on the criteria
     if (postCount >= 4 && commentCount >= 4) {
-      level = 4; // Nivel 4: 4 posts y 4 comentarios
+      level = 4; // Level 4: 4 posts and 4 comments
     } else if (postCount >= 4) {
-      level = 3; // Nivel 3: 4 posts
+      level = 3; // Level 3: 4 posts
     } else if (postCount >= 2) {
-      level = 2; // Nivel 2: 2 posts
+      level = 2; // Level 2: 2 posts
     }
 
-    // Buscar el usuario, excluyendo el campo `password` al hacer la consulta
-    const user = await User.findOne({ usernickname: usernickname }).select('-password');
+    // Find the user, excluding the `password` field in the query
+    const user = await User.findOne({ usernickname: usernickname }).select(
+      "-password"
+    );
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new Error("User not found");
     }
 
-    // Si el nivel ya es el adecuado, no hacemos nada
+    // If the level is already correct, do nothing
     if (user.level === level) {
       return level;
     }
 
-    // Guardar solo el nivel calculado sin afectar otros campos
+    // Save only the calculated level without affecting other fields
     user.level = level;
     await user.save();
 
-    return level; // Retornar el nivel calculado
+    return level; // Return the calculated level
   } catch (error) {
-    console.error("Error calculando el nivel del usuario:", error);
-    throw new Error("Error al calcular el nivel del usuario");
+    console.error("Error calculating user level:", error);
+    throw new Error("Error calculating user level");
   }
 };

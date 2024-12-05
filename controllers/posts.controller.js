@@ -1,10 +1,10 @@
 const PostsService = require("../services/posts.service");
 const UserService = require("../services/user.service");
 const { uploadImage, uploadVideo } = require("../services/cloudinary");
-const fs = require("fs").promises; // Usamos fs.promises para usar async/await correctamente
-const path = require("path"); // Para gestionar rutas de archivos
+const fs = require("fs").promises; // Using fs.promises to use async/await correctly
+const path = require("path"); // To manage file paths
 const multer = require("multer");
-const upload = multer({ dest: "uploads/" }); // Configura tu carpeta de destino
+const upload = multer({ dest: "uploads/" }); // Configure your destination folder
 const User = require("../models/User.model");
 
 exports.getAllPosts = async (req, res) => {
@@ -13,60 +13,60 @@ exports.getAllPosts = async (req, res) => {
     res.status(200).json({
       status: 200,
       data: posts,
-      message: "Posts obtenidos exitosamente",
+      message: "Posts retrieved successfully",
     });
   } catch (error) {
-    console.error("Error al obtener posts:", error);
+    console.error("Error retrieving posts:", error);
     res.status(400).json({
       status: 400,
-      message: error.message || "Error al obtener los posts",
+      message: error.message || "Error retrieving posts",
     });
   }
 };
 
 exports.getUserPosts = async (req, res) => {
   try {
-    const userId = req.userId; // Obtenido del middleware Authorization
+    const userId = req.userId; // Obtained from Authorization middleware
 
     if (!userId) {
       return res.status(401).json({
         status: 401,
-        message: "Usuario no autenticado",
+        message: "User not authenticated",
       });
     }
 
     const posts = await PostsService.getPostsByUser(userId);
 
-    // Si no hay posts, devuelve un array vacío
+    // If no posts, return an empty array
     res.status(200).json({
       status: 200,
-      data: posts || [], // Devuelve un array vacío si no hay resultados
-      message: "Posts del usuario obtenidos exitosamente",
+      data: posts || [], // Return an empty array if no results
+      message: "User posts retrieved successfully",
     });
   } catch (error) {
-    console.error("Error en getUserPosts:", error);
+    console.error("Error in getUserPosts:", error);
     res.status(500).json({
       status: 500,
-      message: "Error al obtener los posts del usuario",
+      message: "Error retrieving user posts",
     });
   }
 };
 
 exports.getPostById = async (req, res) => {
   try {
-    console.log("BACKK",req.params.id)
+    console.log("BACKK", req.params.id);
     const post = await PostsService.getPostById(req.params.id);
 
     if (!post) {
       return res.status(404).json({
         status: 404,
-        message: "Post no encontrado",
+        message: "Post not found",
       });
     }
     res.status(200).json({
       status: 200,
       data: post,
-      message: "Post obtenido exitosamente",
+      message: "Post retrieved successfully",
     });
   } catch (error) {
     res.status(400).json({
@@ -76,29 +76,29 @@ exports.getPostById = async (req, res) => {
   }
 };
 
-// Método consolidado para publicar un post
+// Consolidated method to publish a post
 exports.publishPost = async (req, res) => {
   try {
     const imageUrls = [];
     const videoUrls = [];
 
-    // Procesar las imágenes en req.files.images
+    // Process images in req.files.images
     if (req.files && req.files.images) {
       for (const image of req.files.images) {
-        const imageUrl = await uploadImage(image.buffer); // Usar el buffer directamente
+        const imageUrl = await uploadImage(image.buffer); // Use the buffer directly
         imageUrls.push(imageUrl);
       }
     }
 
-    // Procesar los videos en req.files.videos
+    // Process videos in req.files.videos
     if (req.files && req.files.videos) {
       for (const video of req.files.videos) {
-        const videoUrl = await uploadVideo(video.buffer); // Usar el buffer directamente
+        const videoUrl = await uploadVideo(video.buffer); // Use the buffer directly
         videoUrls.push(videoUrl);
       }
     }
 
-    // Recoger los datos del post
+    // Collect post data
     const postData = {
       title: req.body.title,
       description: req.body.description,
@@ -109,86 +109,86 @@ exports.publishPost = async (req, res) => {
       videos: videoUrls,
     };
 
-    // Guardar el post utilizando el servicio de Posts
+    // Save the post using the Posts service
     const nuevoPost = await PostsService.crearPost(postData);
 
-    // Después de crear el post, calcular el nivel del usuario que lo publicó
-    const userNickname = req.body.user;  // Suponemos que en `req.body.user` está el usernickname del autor
-    await UserService.calculateUserLevel(userNickname); // Llamamos a la función que calcula el nivel
+    // After creating the post, calculate the level of the user who posted it
+    const userNickname = req.body.user; // Assuming `req.body.user` contains the author's user nickname
+    await UserService.calculateUserLevel(userNickname); // Call the level calculation function
 
     res.status(201).json(nuevoPost);
   } catch (error) {
-    console.error("Error al publicar el post:", error);
-    res.status(500).json({ error: "Hubo un error al crear el post" });
+    console.error("Error publishing post:", error);
+    res.status(500).json({ error: "Error creating the post" });
   }
 };
 
-// Manejo de interacciones (likes y comentarios)
+// Interaction handling (likes and comments)
 exports.handleInteractions = async (req, res) => {
   try {
-    const postId = req.params.id; // ID del post desde los parámetros
-    const { action, comment } = req.body; // Acción y comentario desde el cuerpo
-    const userId = req.userId; // ID del usuario autenticado (desde el token)
+    const postId = req.params.id; // Post ID from parameters
+    const { action, comment } = req.body; // Action and comment from the body
+    const userId = req.userId; // Authenticated user ID (from token)
 
-    // Buscar el usernickname del usuario autenticado
+    // Find the authenticated user's user nickname
     const user = await User.findById(userId);
     if (!user) {
       return res
         .status(404)
-        .json({ message: "Usuario autenticado no encontrado" });
+        .json({ message: "Authenticated user not found" });
     }
-    const username = user.usernickname; // Obtener el usernickname
+    const username = user.usernickname; // Get the user nickname
 
-    // Validar si el post existe
+    // Validate if the post exists
     const post = await PostsService.getPostById(postId);
     if (!post) {
       return res
         .status(404)
-        .json({ status: 404, message: "Post no encontrado" });
+        .json({ status: 404, message: "Post not found" });
     }
 
     let updatedPost;
 
     if (action === "like") {
-      // Incrementar o decrementar el contador de likes
-      updatedPost = await PostsService.toggleLike(postId, username);      
+      // Increment or decrement the like counter
+      updatedPost = await PostsService.toggleLike(postId, username);
 
       return res.status(200).json({
         status: 200,
         data: updatedPost,
-        message: "Interacción de 'me gusta' procesada",
+        message: "'Like' interaction processed",
       });
     } else if (action === "comment") {
-      // Agregar comentario al post con el username
+      // Add comment to the post with the username
       updatedPost = await PostsService.addComment(postId, username, comment);
-      // Enviar notificación (si se incluye en la lógica)
-      await PostsService.handleNotification( username, postId, action, comment);
+      // Send notification (if included in the logic)
+      await PostsService.handleNotification(username, postId, action, comment);
 
       return res.status(200).json({
         status: 200,
         data: updatedPost,
-        message: "Comentario agregado",
+        message: "Comment added",
       });
     } else {
       return res.status(400).json({
         status: 400,
-        message: "Acción inválida. Usa 'like' o 'comment'.",
+        message: "Invalid action. Use 'like' or 'comment'.",
       });
     }
 
-    // Después de la interacción, calcular el nivel del usuario (sin bloquear la respuesta)
-    await UserService.calculateUserLevel(username); // Llamamos al cálculo del nivel del usuario
+    // After the interaction, calculate the user's level (without blocking the response)
+    await UserService.calculateUserLevel(username); // Call the user level calculation
 
     return res.status(200).json({
       status: 200,
       data: updatedPost,
-      message: "Interacción procesada correctamente",
+      message: "Interaction processed successfully",
     });
   } catch (error) {
-    console.error("Error en handleInteractions:", error);
+    console.error("Error in handleInteractions:", error);
     return res.status(500).json({
       status: 500,
-      message: "Error al procesar la interacción.",
+      message: "Error processing the interaction.",
     });
   }
 };
@@ -200,10 +200,10 @@ exports.getPostsFromFollowing = async (req, res) => {
     res.status(200).json({
       status: 200,
       data: posts,
-      message: "Posts obtenidos exitosamente",
+      message: "Posts retrieved successfully",
     });
   } catch (error) {
-    console.error("Error en controlador:", error);
+    console.error("Error in controller:", error);
     res.status(400).json({
       status: 400,
       message: error.message,
@@ -211,42 +211,42 @@ exports.getPostsFromFollowing = async (req, res) => {
   }
 };
 
-// Método para agregar a favoritos
+// Method to add to favorites
 exports.toggleFavoritePost = async (req, res) => {
   try {
-    const postId = req.params.id; // El ID del post que el usuario quiere marcar como favorito
-    const userId = req.userId; // El ID del usuario que está autenticado
+    const postId = req.params.id; // Post ID that the user wants to mark as favorite
+    const userId = req.userId; // Authenticated user's ID
 
-    // Verificar si el post existe
+    // Verify if the post exists
     const post = await PostsService.getPostById(postId);
     if (!post) {
-      return res.status(404).json({ message: "Post no encontrado" });
+      return res.status(404).json({ message: "Post not found" });
     }
 
-    // Obtener al usuario
+    // Get the user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Verificar si el post ya es favorito
+    // Verify if the post is already a favorite
     const isFavorite = user.favoritePosts.includes(postId);
 
     if (isFavorite) {
-      // Si el post ya es favorito, lo eliminamos de la lista de favoritos
+      // If the post is already a favorite, remove it from the favorites list
       user.favoritePosts = user.favoritePosts.filter(
         (id) => id.toString() !== postId.toString()
       );
       await user.save();
-      return res.status(200).json({ message: "Post eliminado de favoritos" });
+      return res.status(200).json({ message: "Post removed from favorites" });
     } else {
-      // Si el post no es favorito, lo agregamos a la lista de favoritos
+      // If the post is not a favorite, add it to the favorites list
       user.favoritePosts.push(postId);
       await user.save();
-      return res.status(200).json({ message: "Post agregado a favoritos" });
+      return res.status(200).json({ message: "Post added to favorites" });
     }
   } catch (error) {
-    console.error("Error al manejar el favorito:", error);
-    res.status(500).json({ message: "Error al manejar el favorito del post" });
+    console.error("Error handling favorite:", error);
+    res.status(500).json({ message: "Error handling post favorite" });
   }
 };
